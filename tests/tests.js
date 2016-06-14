@@ -37,3 +37,11 @@ QUnit.test("Boolean comparisons", function(assert) {
     assert.ok(ccBooleanAnalysis.compareBooleans(comp[0], comp[1]) == comp[2], msg);
   }
 });
+
+boolean_constructs = [
+
+];
+
+QUnit.test("Boolean function as a set of biological constructs", function(assert) {
+  assert.ok(true);
+});
