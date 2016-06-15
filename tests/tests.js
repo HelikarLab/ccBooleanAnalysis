@@ -23,6 +23,8 @@ var comparisons = [
   ["NOT (NOT (x))", "x", true],
   ["((A) AND (C OR D))", "(A AND C) OR (A AND D)", true],
   ["(A) AND (NOT (C OR D))", "A AND (NOT C) AND (NOT D)", true],
+  ["X AND X", "X", true],
+  ["X OR X", "X", true],
 ];
 
 QUnit.test("Boolean comparisons", function(assert) {

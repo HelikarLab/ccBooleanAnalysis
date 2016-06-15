@@ -4,6 +4,11 @@
 
 ccBooleanAnalysis.getDNFStringEncoding = function(s) {
 
+  // Unique filter
+  var uniqueFilter = function(value, index, self) {
+    return self.indexOf(value) == index;
+  }
+
   var iterateAndTree = function(positive_holder, negative_holder, parse_tree) {
     if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
       positive_holder.data.push(parse_tree.name);
@@ -23,8 +28,9 @@ ccBooleanAnalysis.getDNFStringEncoding = function(s) {
       var and_positive_holder = {data: []};
       var and_negative_holder = {data: []};
       iterateAndTree(and_positive_holder, and_negative_holder, parse_tree);
-      and_positive_holder.data.sort();
-      and_negative_holder.data.sort();
+
+      and_positive_holder.data = and_positive_holder.data.filter(uniqueFilter).sort();
+      and_negative_holder.data = and_negative_holder.data.filter(uniqueFilter).sort();
 
       var encoding = "";
       encoding += and_positive_holder.data.join("%");
@@ -52,7 +58,7 @@ ccBooleanAnalysis.getDNFStringEncoding = function(s) {
   // Main Logic
   conjuctions = {data: []};
   iterateOrTree(conjuctions, parse_tree);
-  conjuctions.data.sort();
+  conjuctions.data = conjuctions.data.filter(uniqueFilter).sort();
   var final_encoding = conjuctions.data.join("|");
   return final_encoding;
 }
