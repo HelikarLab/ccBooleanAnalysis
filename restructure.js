@@ -98,9 +98,9 @@ ccBooleanAnalysis._sortTerms = function(parse_tree, terms) {
   if (parse_tree.operator == this._constants.kAND || parse_tree.operator == this._constants.kOR) {
     this._sortTerms(parse_tree.left, terms);
     this._sortTerms(parse_tree.right, terms);
-  } else if (parse_tree.type  == this._constants.kIdentifier) {
-    terms.data.positive.push(parse_tree.name);
+  } else if (parse_tree.type == this._constants.kIdentifier) {
+    terms.data.push(parse_tree.name + '___pos');
   } else if (parse_tree.operator == this._constants.kNOT) {
-    terms.data.negative.push(parse_tree.argument.name);
+    terms.data.push(parse_tree.argument.name + '___neg');
   }
 }
