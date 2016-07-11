@@ -129,7 +129,7 @@ ccBooleanAnalysis.getBiologicalConstructs = function(s) {
   //    then set parse tree = original parse tree, absentState = true
 
   var pt = this.getParseTree(s);
-  var absentState = true;
+  var absentState = false;
   if (pt.operator == ccBooleanAnalysis._constants.kOR && pt.right.type == ccBooleanAnalysis._constants.kUnaryExpression) {
     data_left = {'data': []};
     data_right = {'data': []};
@@ -141,7 +141,7 @@ ccBooleanAnalysis.getBiologicalConstructs = function(s) {
 
     if (isSuperset) {
       pt = pt.left;
-      absentState = false;
+      absentState = true;
     }
   }
 
