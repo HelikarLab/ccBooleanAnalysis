@@ -32,10 +32,6 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
       var and_positive_holder = {data: []};
       var and_negative_holder = {data: []};
       iterateAndTree(and_positive_holder, and_negative_holder, parse_tree);
-      // console.log("postive");
-      // console.log(and_positive_holder);
-      // console.log("negative");
-      // console.log(and_negative_holder);
 
       // Setup positive regulators
       if (and_positive_holder.data.length > 0) {
@@ -47,8 +43,6 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
             conditionRelation: true,
             conditions: [],
           };
-          console.log("pushed a new postiive");
-          console.log(positive_holder.data[first_positive_name]);
         }
         for (var i = 1; i < and_positive_holder.data.length; i++) {
           positive_holder.data[first_positive_name].conditions.push({
@@ -81,8 +75,6 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
           type: true
         };
       }
-      console.log("positive holder");
-      console.log(positive_holder);
     } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
       // Add a negative regulator with no conditions
       var negative_regulator_name = parse_tree.argument.name;
@@ -92,8 +84,6 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
           type: true
         };
       }
-      console.log("negative holder");
-      console.log(negative_holder);
     } else { // kOR
       iterateOrTree(positive_holder, negative_holder, parse_tree.left);
       iterateOrTree(positive_holder, negative_holder, parse_tree.right);
@@ -101,13 +91,20 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
   }
 
   // Main Logic
-  positive_holder = {data: []};
-  negative_holder = {data: []};
+  positive_holder = {data: {}};
+  negative_holder = {data: {}};
+
   iterateOrTree(positive_holder, negative_holder, parse_tree);
-  return {
-    'positive_regulators': positive_holder.data,
-    'negative_regulators': negative_holder.data
+
+  var regulators = [];
+  for (var key in positive_holder.data) {
+    regulators.push(positive_holder.data[key]);
   }
+  for (var key in negative_holder.data) {
+    regulators.push(negative_holder.data[key]);
+  }
+
+  return regulators;
 }
 
 ccBooleanAnalysis._getTerms = function(parse_tree, terms) {
