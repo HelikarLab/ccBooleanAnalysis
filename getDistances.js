@@ -90,3 +90,21 @@ ccBooleanAnalysis.getDistances = function(equations) {
   }
   return distances;
 }
+
+// Average shortest path
+ccBooleanAnalysis.averageDistance = function(equations) {
+  var distances = this.getDistances(equations);
+  var nodes = Object.keys(distances);
+
+  var total_distance = 0;
+  var node_count = 0;
+  for (var i = 0; i < nodes.length; i++) {
+    var node1 = nodes[i];
+    for (var j = i + 1; j < nodes.length; j++) {
+      var node2 = nodes[j];
+      total_distance += distances[node1][node2];
+      node_count += 1;
+    }
+  }
+  return total_distance / node_count;
+}
