@@ -130,6 +130,24 @@ ccBooleanAnalysis.connectivity = function(equations) {
   return connectivity;
 }
 
+ccBooleanAnalysis.averageConnectivity = function(equations) {
+  var connectivity = this.connectivity(equations);
+
+  var averageConnectivity = {};
+  for (var source in connectivity) {
+    var connected_targets = 0;
+    var total_targets = 0;
+    for (var target in connectivity[source]) {
+      total_targets += 1;
+      if (connectivity[source][target]) {
+        connected_targets += 1;
+      }
+    }
+    averageConnectivity[source] = connected_targets / total_targets;
+  }
+  return averageConnectivity;
+}
+
 ccBooleanAnalysis.diameter = function(equations) {
   var distances = this.getDistances(equations);
   var diameter = 0;
