@@ -108,3 +108,24 @@ ccBooleanAnalysis.averageDistance = function(equations) {
   }
   return total_distance / node_count;
 }
+
+// Connectivity
+ccBooleanAnalysis.connectivity = function(equations) {
+  var distances = this.getDistances(equations);
+  var nodes = Object.keys(distances);
+
+  var connectivity = {};
+
+  for (var i = 0; i < nodes.length; i++) {
+    var node1 = nodes[i];
+    connectivity[node1] = {};
+    for (var j = 0; j < nodes.length; j++) {
+      var node2 = nodes[j];
+
+      // is node1 connected to node2? (1 -> 2)
+      var connected = (node2 in distances[node1]);
+      connectivity[node1][node2] = connected;
+    }
+  }
+  return connectivity;
+}
