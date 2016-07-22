@@ -73,6 +73,18 @@ ccBooleanAnalysis._get_union = function(a, b) {
      }
   }
 
+  while (ai < a.length)
+  {
+    result.push(a[ai]);
+    ai++;
+  }
+
+  while (bi < b.length)
+  {
+    result.push(b[bi]);
+    bi++;
+  }
+
   return result;
 }
 

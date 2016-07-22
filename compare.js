@@ -99,7 +99,7 @@ ccBooleanAnalysis.getDNFStringEncoding = function(s) {
           var intersection = [this._remove_intersection(conjuction_a[0], conjuction_b[0]), this._remove_intersection(conjuction_a[1], conjuction_b[1])];
 
           // confirm that the only difference is a term switched from pos to neg
-          if (conjuction_a[0].length == 1 && conjuction_a[1].length == 1 && conjuction_b[1].length == 1 && conjuction_b[0].length == 1 && conjuction_a[0][0] ==   conjuction_b[1][0]) {
+          if (conjuction_a[0].length == 1 && conjuction_a[1].length == 0 && conjuction_b[1].length == 1 && conjuction_b[0].length == 0 && conjuction_a[0][0] ==  conjuction_b[1][0]) {
             no_collision = false; // mark that we've had a collision
 
             // remove the collision
