@@ -44,13 +44,15 @@ ccBooleanAnalysis.getRegulators = function(parse_tree) {
             conditions: [],
           };
         }
+        var condition_components = [];
         for (var i = 1; i < and_positive_holder.data.length; i++) {
-          positive_holder.data[first_positive_name].conditions.push({
-            state: true, // active
-            type: true, // if/when
-            components: [and_positive_holder.data[i]]
-          });
+          condition_components.push(and_positive_holder.data[i]);
         }
+        positive_holder.data[first_positive_name].conditions.push({
+          state: true, // active
+          type: true, // if/when
+          components: condition_components
+        });
       }
 
       // Setup negative regulators
