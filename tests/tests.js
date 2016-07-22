@@ -47,3 +47,4 @@ boolean_constructs = [
 QUnit.test("Boolean function as a set of biological constructs", function(assert) {
   assert.ok(true);
 });
+
