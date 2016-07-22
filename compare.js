@@ -83,8 +83,8 @@ ccBooleanAnalysis.getDNFStringEncoding = function(s) {
         var collision = collisions[j];
 
         // heuristic to avoid taking intersection in every case
-        var collision_has_neg = ((collision[0].length == conjuction[0].length - 1) && (collision[1].length == conjuction[0].length + 1));
-        var conjuction_has_neg = ((collision[0].length == conjuction[0].length + 1) && (collision[1].length == conjuction[0].length - 1));
+        var collision_has_neg = ((collision[0].length == conjuction[0].length - 1) && (collision[1].length == conjuction[1].length + 1));
+        var conjuction_has_neg = ((collision[0].length == conjuction[0].length + 1) && (collision[1].length == conjuction[1].length - 1));
 
         if (collision_has_neg || conjuction_has_neg) {
           if (collision_has_neg) {
