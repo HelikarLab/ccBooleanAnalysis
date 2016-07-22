@@ -64,12 +64,17 @@ ccBooleanAnalysis.getDistances = function(equations) {
   var has_outgoing = Object.keys(graph.data);
   for (var i = 0; i < has_outgoing.length; i++) {
     var root_node = has_outgoing[i];
-    distances[root_node] = {};
-    distances[root_node][root_node] = 0;
     var visited = [];
     var dist = 0;
     var queue = new Queue();
-    queue.enqueue(root_node);
+
+    distances[root_node] = {};
+    var neighbors = graph.data[root_node];
+    for (var j = 0; j < neighbors.length; j++) {
+      var neighbor = neighbors[j];
+      distances[root_node][neighbor] = 1;
+      queue.enqueue(neighbor);
+    }
 
     while(!(queue.isEmpty())) {
       current = queue.dequeue();
@@ -77,14 +82,16 @@ ccBooleanAnalysis.getDistances = function(equations) {
         distances[current] = {};
       }
 
-      var neighbors = graph.data[current];
-      for (var j = 0; j < neighbors.length; j++) {
-        var neighbor = neighbors[j];
-        if (!(neighbor in distances[root_node]) || (distances[root_node][neighbor] > distances[root_node][current] + 1)) {
-          distances[root_node][neighbor] = distances[root_node][current] + 1;
-          queue.enqueue(neighbor);
+      if (current in graph.data) {
+        var neighbors = graph.data[current];
+        for (var j = 0; j < neighbors.length; j++) {
+          var neighbor = neighbors[j];
+          if (!(neighbor in distances[root_node]) || (distances[root_node][neighbor] > distances[root_node][current] + 1)) {
+            distances[root_node][neighbor] = distances[root_node][current] + 1;
+            queue.enqueue(neighbor);
+          }
+          distances[current][neighbor] = 1;
         }
-        distances[current][neighbor] = 1;
       }
     }
   }
