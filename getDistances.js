@@ -129,3 +129,17 @@ ccBooleanAnalysis.connectivity = function(equations) {
   }
   return connectivity;
 }
+
+ccBooleanAnalysis.diameter = function(equations) {
+  var distances = this.getDistances(equations);
+  var diameter = 0;
+  for (source in distances) {
+    for (target in distances[source]) {
+      var distance = distances[source][target];
+      if (distance > diameter) {
+        diameter = distance;
+      }
+    }
+  }
+  return diameter;
+}
