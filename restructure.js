@@ -94,13 +94,21 @@ ccBooleanAnalysis._pushDownAnds = function(parse_tree) {
 // Get all positive and negative variables
 // structure terms as: { data: { positive: [], negative: [] } }
 // Must be in negation form to work properly
-ccBooleanAnalysis._sortTerms = function(parse_tree, terms) {
+ccBooleanAnalysis._sortTerms = function(parse_tree, terms, label_pos_neg) {
   if (parse_tree.operator == this._constants.kAND || parse_tree.operator == this._constants.kOR) {
-    this._sortTerms(parse_tree.left, terms);
-    this._sortTerms(parse_tree.right, terms);
+    this._sortTerms(parse_tree.left, terms, label_pos_neg);
+    this._sortTerms(parse_tree.right, terms, label_pos_neg);
   } else if (parse_tree.type == this._constants.kIdentifier) {
-    terms.data.push(parse_tree.name + '___pos');
+    if (label_pos_neg) {
+      terms.data.push(parse_tree.name + '___pos');
+    } else {
+      terms.data.push(parse_tree.name);
+    }
   } else if (parse_tree.operator == this._constants.kNOT) {
-    terms.data.push(parse_tree.argument.name + '___neg');
+    if (label_pos_neg) {
+      terms.data.push(parse_tree.argument.name + '___neg');
+    } else {
+      terms.data.push(parse_tree.argument.name);
+    }
   }
 }

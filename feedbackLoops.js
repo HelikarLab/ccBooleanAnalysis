@@ -44,11 +44,11 @@ ccBooleanAnalysis._findCycles = function(graph, cycles, cur_node, stack, in_prog
       // determine parity
       if (find_parities) {
         cycles.data.push({
-          cycle: cycle,
+          cycle: cycle.reverse(),
           type: parity
         });
       } else {
-        cycles.data.push(cycle);
+        cycles.data.push(cycle.reverse());
       }
     } else if (!(visited[neighbor])) {
       var visited_clone = this._clone(visited);
@@ -63,38 +63,7 @@ ccBooleanAnalysis._findCycles = function(graph, cycles, cur_node, stack, in_prog
 }
 
 ccBooleanAnalysis._feedbackLoopsCommon = function(equations, find_parities) {
-  // Setup base graph form
-  var graph = {
-    data: {}
-  };
-
-  // Generate parse trees for each expression
-  for (var i = 0; i < equations.length; i++) {
-    // Seperate each side of the equation
-    var equation = equations[i];
-    var sides = equation.split('=');
-
-    // remove white space
-    var lhs = sides[0].split(' ').join('');
-    var expression = sides[1];
-    var parse_tree = this.getParseTree(expression);
-
-    // Sort the terms
-    var terms = {
-      data: []
-    };
-
-    this._convertToNegationForm(parse_tree);
-    this._sortTerms(parse_tree, terms);
-
-    // Here, we disregard whether a term is positive or negative
-    // Annotate all terms on the graph
-    graph.data[lhs] = [];
-    for (var j = 0; j < terms.data.length; j++) {
-      var term = terms.data[j];
-      graph.data[lhs].push(term);
-    }
-  }
+  var graph = this._getGraph(equations, find_parities);
 
   // Find all cycles in the graph
   var cycles = {
@@ -102,7 +71,7 @@ ccBooleanAnalysis._feedbackLoopsCommon = function(equations, find_parities) {
   };
 
   var global_visited = {
-    data: []
+    data: {}
   };
 
   var has_incoming = Object.keys(graph.data);
@@ -112,6 +81,7 @@ ccBooleanAnalysis._feedbackLoopsCommon = function(equations, find_parities) {
       this._findCycles(graph, cycles, node, [], {}, {}, global_visited, find_parities);
     }
   }
+  console.log(cycles.data)
   return cycles.data;
 }
 
