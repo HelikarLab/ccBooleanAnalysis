@@ -73,7 +73,6 @@ ccBooleanAnalysis.getDistances = function(equations) {
 
     while(!(queue.isEmpty())) {
       current = queue.dequeue();
-      console.log(current);
       if (!(distances[current])) {
         distances[current] = {};
       }
