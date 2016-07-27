@@ -9,6 +9,7 @@
   var jsep = require('jsep');
   var $ = require('jquery');
   var Queue = require('./queue.js').Queue;
+  var Logic = require('logic-solver');
 
   /* Module setup */
   var ccBooleanAnalysis = function () {};
@@ -1093,6 +1094,46 @@
     }
 
     return transitions;
+  }
+
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////         Satisfiability
+  ////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+
+  /**
+   * @method ccBooleanAnalysis.satisfiable
+   * @param {jsep} parse_tree A parse_tree that should be checked for satisfiability.
+   * @return {boolean} Whether the expression is satisfiable.
+   */
+  ccBooleanAnalysis.satisfiable = function(parse_tree) {
+    // returns a Logic (logic-solver) encoding of the parse_tree
+    // recursively builds the encoding
+    // does not require DNF or any fancy expresion
+    var buildLogicFormula = function(parse_tree) {
+      if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
+        // base case
+        return parse_tree.name;
+      } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
+        return Logic.not(buildLogicFormula(parse_tree.argument));
+      } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
+        return Logic.and(buildLogicFormula(parse_tree.left), buildLogicFormula(parse_tree.right));
+      } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
+        return Logic.or(buildLogicFormula(parse_tree.left), buildLogicFormula(parse_tree.right));
+      }
+    }
+
+    var logic_formula = buildLogicFormula(parse_tree);
+    var solver = new Logic.Solver();
+    solver.require(logic_formula);
+    var result = solver.solve(); // null if not satisfiable
+    if (result) {
+      return true
+    } else {
+      return false;
+    }
   }
 
   module.exports = ccBooleanAnalysis;
