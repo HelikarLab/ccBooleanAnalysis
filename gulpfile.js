@@ -14,7 +14,7 @@ gulp.task('jshint', function() {
 
 // JS concat, strip debugging and minify
 gulp.task('scripts', function() {
-  return gulp.src('src/ccBooleanAnalysis.js', {base: './'})
+  return gulp.src('src/ccBooleanAnalysis.js')
     .pipe(webpack({
       output: {
         filename: "ccBooleanAnalysis.js",
