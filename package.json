@@ -6,13 +6,13 @@
   "dependencies": {
     "jquery": "^3.1.0",
     "jsep": "^0.3.0",
-    "logic-solver": "^2.0.1",
+    "logic-solver": "^2.0.1"
   },
   "devDependencies": {
     "gulp": "^3.9.1",
     "jshint": "^2.9.2",
     "gulp-jshint": "^2.0.1",
-    "webpack-stream": "^3.2.0",
+    "webpack-stream": "^3.2.0"
   },
   "repository": {
     "type": "git",
