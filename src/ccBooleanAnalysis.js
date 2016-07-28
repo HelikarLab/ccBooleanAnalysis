@@ -1103,29 +1103,24 @@
   ////////////////////////////////////////
   ////////////////////////////////////////
 
-  /**
-   * @method ccBooleanAnalysis.satisfiable
-   * @param {jsep} parse_tree A parse_tree that should be checked for satisfiability.
-   * @return {boolean} Whether the expression is satisfiable.
-   */
-  ccBooleanAnalysis.satisfiable = function(parse_tree) {
-    // returns a Logic (logic-solver) encoding of the parse_tree
-    // recursively builds the encoding
-    // does not require DNF or any fancy expresion
-    var buildLogicFormula = function(parse_tree) {
-      if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
-        // base case
-        return parse_tree.name;
-      } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
-        return Logic.not(buildLogicFormula(parse_tree.argument));
-      } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
-        return Logic.and(buildLogicFormula(parse_tree.left), buildLogicFormula(parse_tree.right));
-      } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
-        return Logic.or(buildLogicFormula(parse_tree.left), buildLogicFormula(parse_tree.right));
-      }
+  // returns a Logic (logic-solver) encoding of the parse_tree
+  // recursively builds the encoding
+  // does not require DNF or any fancy expresion
+  ccBooleanAnalysis._buildLogicFormula = function(parse_tree) {
+    if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
+      // base case
+      return parse_tree.name;
+    } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
+      return Logic.not(this._buildLogicFormula(parse_tree.argument));
+    } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
+      return Logic.and(this._buildLogicFormula(parse_tree.left), this._buildLogicFormula(parse_tree.right));
+    } else if (parse_tree.operator == ccBooleanAnalysis._constants.kOR) {
+      return Logic.or(this._buildLogicFormula(parse_tree.left), this._buildLogicFormula(parse_tree.right));
     }
+  }
 
-    var logic_formula = buildLogicFormula(parse_tree);
+  // Is the given formula satisfiable?
+  ccBooleanAnalysis._formulaSatisfiable = function(logic_formula) {
     var solver = new Logic.Solver();
     solver.require(logic_formula);
     var result = solver.solve(); // null if not satisfiable
@@ -1135,6 +1130,35 @@
       return false;
     }
   }
+
+  /**
+   * @method ccBooleanAnalysis.satisfiable
+   * @param {string} s A string encoding a boolean expression that should be checked for satisfiability.
+   * @return {boolean} Whether the expression is satisfiable.
+   */
+  ccBooleanAnalysis.satisfiable = function(s) {
+    var parse_tree = this.getParseTree(s);
+    var logic_formula = this._buildLogicFormula(parse_tree);
+    return this._formulaSatisfiable(logic_formula);
+  }
+
+  /**
+   * @method ccBooleanAnalysis.compareBooleansSAT
+   * @param {string} s1 A string encoding a boolean expression that should be checked for equality.
+   * @param {string} s2 A string encoding a boolean expression that should be checked for equality.
+   * @return {boolean} Whether the two expressions are equivalent.
+   */
+  ccBooleanAnalysis.compareBooleansSAT = function(s1, s2) {
+    var pt1 = this.getParseTree(s1);
+    var pt2 = this.getParseTree(s2);
+
+    var logic_formula1 = this._buildLogicFormula(pt1);
+    var logic_formula2 = this._buildLogicFormula(pt2);
+
+    var expression = Logic.xor(logic_formula1, logic_formula2);
+    return !(ccBooleanAnalysis._formulaSatisfiable(expression));
+  }
+
 
   module.exports = ccBooleanAnalysis;
 // });
