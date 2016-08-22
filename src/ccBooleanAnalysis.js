@@ -65,11 +65,11 @@
   ////////////////////////////////////////
 
   /**
-   * @method ccBooleanAnalysis.getDNFStringEncoding
+   * @method ccBooleanAnalysis.getDNFObjectEncoding
    * @param {string} s A string representing the boolean expression that should be transformed.
-   * @return {string} A string encoding of the boolean expression in DNF.
+   * @return {object} A hashtable representing the expression in DNF form. Useful for various functions in our library.
    */
-  ccBooleanAnalysis.getDNFStringEncoding = function(s) {
+  ccBooleanAnalysis.getDNFObjectEncoding = function(s) {
     var iterateAndTree = function(positive_holder, negative_holder, parse_tree) {
       if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
         positive_holder.data.push(parse_tree.name);
@@ -123,7 +123,7 @@
       // then discard the larger one.
       for (var j = i + 1; j < conjuctions.data.length; j++) {
         var conjuction_b = conjuctions.data[j];
-        var subset = [ccBooleanAnalysis._is_subset(conjuction_a[0], conjuction_b[0]), ccBooleanAnalysis._is_subset(conjuction_a[1],   conjuction_b[1])];
+        var subset = [ccBooleanAnalysis._is_subset(conjuction_a[0], conjuction_b[0]), ccBooleanAnalysis._is_subset(conjuction_a[1], conjuction_b[1])];
         if (subset[0] == 2 && subset[1] == 2) {
           // throw away conjuction_a
           conjuctions.data.splice(i, 1);
@@ -181,13 +181,27 @@
             }
           }
         }
-      } else {
-        conjuctions_hashtable[key] = [];
       }
       if (no_collision) {
-        conjuctions_hashtable[key].push(conjuction);
+        if (!(key in conjuctions_hashtable)) {
+          conjuctions_hashtable[key] = [conjuction];
+        } else {
+          conjuctions_hashtable[key].push(conjuction);
+        }
+
       }
     }
+
+    return conjuctions_hashtable;
+  }
+
+  /**
+   * @method ccBooleanAnalysis.getDNFStringEncoding
+   * @param {string} s A string representing the boolean expression that should be transformed.
+   * @return {string} A string encoding of the boolean expression in DNF.
+   */
+  ccBooleanAnalysis.getDNFStringEncoding = function(s) {
+    var conjuctions_hashtable = this.getDNFObjectEncoding(s);
 
     var final_conjuctions = [];
     for (var key in conjuctions_hashtable) {
@@ -745,6 +759,48 @@
     return $.extend({}, dict);
   }
 
+  // Get all values in a dictionary
+  ccBooleanAnalysis._getValues = function(dict) {
+    var array_values = [];
+    for (var key in dict) {
+      array_values.push(dict[key]);
+    }
+    return array_values;
+  }
+
+  // Get all values from a dictionary and flatten them
+  // Ex. {
+  //  'AB': [  [1], [2], [3]  ]
+  //  'C':  [  [4], [5] ]
+  // }
+  //
+  // Produces:
+  // [ [1], [2], [3], [4], [5] ]
+  //
+  // If _getValues was used, it would instead produce:
+  // [ [ [1],[2],[3] ], [ [4], [5] ] ]
+  //
+  //
+  ccBooleanAnalysis._getValuesFlattened = function(dict) {
+    var array_values = [];
+    for (var key in dict) {
+      var value_arr = dict[key];
+      for (var i = 0; i < value_arr.length; i++) {
+        array_values.push(value_arr[i]);
+      }
+    }
+    return array_values;
+  }
+
+  // Get all keys in a dictionary
+  ccBooleanAnalysis._getKeys = function(dict) {
+    var array_keys = [];
+    for (var key in dict) {
+      array_keys.push(key);
+    }
+    return array_keys;
+  }
+
   // Return unique vlaues
   // use as follows:
   // data.filter(ccBooleanAnalysis._uniqueFilter)
@@ -1159,6 +1215,298 @@
     return !(ccBooleanAnalysis._formulaSatisfiable(expression));
   }
 
+
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////         Model Reduction
+  ////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+
+  // conjuctions is an array of arrays (all values in DNFObject)
+  // returns new conjuctions array
+  ccBooleanAnalysis.parseConjuctionsAtPoint = function(conjuctions, variable, value) {
+    var anything_changed = false;
+    for (var i = 0; i < conjuctions.length; i++) {
+      var conjuction = conjuctions[i];
+      for (var j = 0; j < conjuction[0].length; j++) { // pos variables
+        if (conjuction[0][j] == variable) {
+          if (value) { // true
+            // if there is only one conjuction
+            // and that conjuction has just one positive variable
+            if (conjuction[0].length == 1 && conjuction[1].length == 0) {
+              // this it the only term left in the conjuction,
+              // though other conjuctions still remain.
+              // But since this conjuction is true, and we only
+              // need one conjuction to be true for SAT,
+              // we return that the entire expression is true.
+              return [true, true, 1];
+            } else {
+              // delete term
+              conjuction[0].splice(j, 1);
+              j--;
+              anything_changed = true;
+            }
+          } else { // false
+            if (conjuctions.length == 1) {
+              // this is the only conjuction left. Report a constant false function.
+              return [false, true, -1];
+            } else {
+              // delete conjuction
+              conjuctions.splice(i, 1);
+              i--;
+              anything_changed = true;
+              break;
+            }
+          }
+        }
+      }
+
+      for (var j = 0; j < conjuction[1].length; j++) { // neg variables
+        if (conjuction[1][j] == variable) {
+          if (!(value)) { // true
+            // if there is only one conjuction
+            // and that conjuction has just one positive variable
+            if (conjuction[1].length == 1 && conjuction[0].length == 0) {
+              // this it the only term left in the conjuction,
+              // though other conjuctions still remain.
+              // But since this conjuction is true, and we only
+              // need one conjuction to be true for SAT,
+              // we return that the entire expression is true.
+              return [true, true, 1];
+            } else {
+              // delete term
+              conjuction[1].splice(j, 1);
+              j--;
+              anything_changed = true;
+            }
+          } else { // false
+            if (conjuctions.length == 1) {
+              // this is the only conjuction left. Report a constant false function.
+              return [false, true, -1];
+            } else {
+              // delete conjuction
+              conjuctions.splice(i, 1);
+              i--;
+              anything_changed = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    return [conjuctions, anything_changed, 0];
+    // last item in array is whether this thing is a constant term
+    // -1 -> constant false
+    // 1 ->  constant true
+    // 0 -> not constant
+  }
+
+  // accepts equations as an array of strings
+  // dependent_on and depends_on will change overtime,
+  // but the beginning values still serve as a good heuristic
+  // on what to analyze
+  //
+  // future: find data structure which lets us look up where a value in within
+  // the hashtable and remove it (quickly).
+  ccBooleanAnalysis.reduceModel = function(equations) {
+    var equation_mapping = {}; // equation_mapping['A'] gives array of arrays of conjuctions for expr in A=(expr)
+    var depends_on = {}; // depends_on['A'] gives all variables which depend on 'A'.
+    var constant_term_pos = [];
+    var constant_term_neg = [];
+    // can derive dependent_on from equation_mapping (a flattening of the outer array in equation_mapping)
+
+    // prepare those dictionaries
+    for (var i = 0; i < equations.length; i++) {
+      var equation = equations[i];
+      var parts = equation.split('=');
+
+      // Clear white space from the LHS
+      parts[0] = parts[0].replace(/ /gi, "");
+
+      // Example format of conjuctions:
+      // [ [ [ 'A' ], [ 'D' ] ], [ [ 'C' ], [] ] ]
+      var conjuctions = this._getValuesFlattened(this.getDNFObjectEncoding(parts[1]));
+
+      // First, propogate any 'true' and 'false' values that are baked in.
+      var result_at_point = this.parseConjuctionsAtPoint(conjuctions, 'true', true);
+      if (result_at_point[2] == 1) {
+        constant_term_pos.push(parts[0]);
+        continue;
+      } else if (result_at_point[2] == -1) {
+        constant_term_neg.push(parts[0]);
+        continue;
+      }
+
+      result_at_point = this.parseConjuctionsAtPoint(result_at_point[0], 'false', false);
+      if (result_at_point[2] == 1) {
+        constant_term_pos.push(parts[0]);
+        continue;
+      } else if (result_at_point[2] == -1) {
+        constant_term_neg.push(parts[0]);
+        continue;
+      }
+
+      // Then, set up the depends_on matrix
+      equation_mapping[parts[0]] = conjuctions;
+      for (var j = 0; j < conjuctions.length; j++) {
+        var individual_conjuction = conjuctions[j];
+        for (var k = 0; k < individual_conjuction[0].length; k++) {
+          var term = individual_conjuction[0][k];
+          if (!(term in depends_on)) {
+            depends_on[term] = [];
+          }
+          depends_on[term].push(parts[0]);
+        }
+
+        for (var k = 0; k < individual_conjuction[1].length; k++) {
+          var term = individual_conjuction[1][k];
+          if (!(term in depends_on)) {
+            depends_on[term] = [];
+          }
+          depends_on[term].push(parts[0]);
+        }
+      }
+    }
+
+    // Reduction Algorithm 1
+    // Identifying and eliminating the stabilized nodes
+    // See section 2.1 of Saadatpour, et al.
+
+    // We optimize the algorithm by finding all constant functions in advance
+    // and noting that a non-constant function can only become constant
+    // if it depends on a constant function.
+    //
+    // This way, we can determine that we are at a fixed point a priori without
+    // actually confirming this (saves O(N) time).
+
+    for (var i = 0; i < constant_term_pos.length; i++) {
+      var term = constant_term_pos[i];
+      var dependencies = depends_on[term]; // A = B AND C ->>>>> A depends on B. A shows up in dependencies.
+      for (var j = 0; j < dependencies.length; j++) {
+        var dependency = dependencies[j];
+        if (!(dependency in equation_mapping)) { // meaning it hasn't been removed yet by becoming constant...
+          continue;
+        }
+        var conjuctions = equation_mapping[dependency];
+        var result_at_point = this.parseConjuctionsAtPoint(conjuctions, term, true);
+
+        if (result_at_point[2] == 1) {
+          constant_term_pos.push(dependency);
+          delete equation_mapping[dependency];
+          continue;
+        } else if (result_at_point[2] == -1) {
+          constant_term_neg.push(dependency);
+          delete equation_mapping[dependency];
+          continue;
+        } else {
+          equation_mapping[dependency] = result_at_point[0];
+        }
+      }
+    }
+
+    // Basically same code for negatives
+    for (var i = 0; i < constant_term_neg.length; i++) {
+      var term = constant_term_neg[i];
+      var dependencies = depends_on[term];
+      for (var j = 0; j < dependencies.length; j++) {
+        var dependency = dependencies[j];
+        if (!(dependency in equation_mapping)) { // meaning it hasn't been removed yet by becoming constant...
+          continue;
+        }
+        var conjuctions = equation_mapping[dependency];
+        var result_at_point = this.parseConjuctionsAtPoint(conjuctions, term, false);
+
+        if (result_at_point[2] == 1) {
+          constant_term_pos.push(dependency);
+          delete equation_mapping[dependency];
+          continue;
+        } else if (result_at_point[2] == -1) {
+          constant_term_neg.push(dependency);
+          delete equation_mapping[dependency];
+          continue;
+        } else {
+          equation_mapping[dependency] = result_at_point[0];
+        }
+      }
+    }
+
+    // Reduction Algorithm 2
+    // Merging simple mediator nodes
+    // See section 2.1 of Saadatpour, et al.
+
+    // a -> b -> c ------> a -> c
+    var inDegreeOneDependency = function(eq_conjuctions) {
+      // returns false if the in-degree is > 1
+      // otherwise, returns the dependency, whether the term is pos (True) / neg (False)
+
+      // If there are multiple conjuctions, there must be
+      // multiple variables. Becuase otherwise, these variables
+      // would have been removed in a pre-processing step.
+      // I.e. we would never see (A OR NOT A).
+      // We might see (A OR (NOT A AND B)),
+      // but the in-degree is >1 here.
+      if (eq_conjuctions.length > 1) {
+        return false;
+      }
+      // If there are variables in both the true and false sections
+      // of the conjuction, then in-degree must be > 1.
+      else if (eq_conjuctions[0][0].length + eq_conjuctions[0][1].length > 1) {
+        return false;
+      }
+      // there is one variable in the positive section
+      else if (eq_conjuctions[0][0].length == 1 && eq_conjuctions[0][1].length == 0) {
+        return [eq_conjuctions[0][0][0], true];
+      }
+      // there is one variable in the negative section
+      else if (eq_conjuctions[0][0].length == 0 && eq_conjuctions[0][1].length == 1) {
+        return [eq_conjuctions[0][1][0], false];
+      }
+    }
+
+    // If a term is in in_degree_one_mat, then it has in_degree_one.
+    // It's value in the hash_map is [its_dependency, pos/neg reliance]
+    in_degree_one_mat = {};
+    for (var term in equation_mapping) {
+      var result = inDegreeOneDependency(equation_mapping[term]);
+      if (result) {
+        in_degree_one_mat[term] = result;
+      }
+    }
+
+    // Find mediator nodes
+    for (var term in in_degree_one_mat) {
+      // keep_going allows us to keep collapsing terms
+      // until the chain ends
+      var keep_going = true;
+      while (keep_going) {
+        var back_dependency_1_info = in_degree_one_mat[term];
+        if (back_dependency_1_info[0] in in_degree_one_mat) {
+          var back_dependency_2_info = in_degree_one_mat[back_dependency_1_info[0]];
+
+          // Update the chain
+          if (back_dependency_1_info[1] == back_dependency_2_info[1]) { // true/true of false/false gives positive
+            equation_mapping[term] = [ [ [ back_dependency_2_info[0] ], [] ] ];
+            in_degree_one_mat[term] = [back_dependency_2_info[0], true];
+          } else {
+            equation_mapping[term] = [ [ [], [ back_dependency_2_info[0] ] ] ];
+            in_degree_one_mat[term] = [back_dependency_2_info[0], false];
+          }
+
+          // Remove the mediator node
+          delete equation_mapping[back_dependency_1_info[0]];
+          delete in_degree_one_mat[back_dependency_1_info[0]];
+        } else {
+          // if there is no mediator node, move onto the next term
+          keep_going = false;
+        }
+      }
+    }
+
+    // returns a hash_table representing the conjuctions for each term
+    // can be interconverted into parse_tree or similar, as needed.
+    return equation_mapping;
+  }
 
   module.exports = ccBooleanAnalysis;
 // });
