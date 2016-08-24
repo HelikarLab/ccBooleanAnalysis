@@ -506,6 +506,113 @@
   }
 
   /**
+   * @method ccBooleanAnalysis.connectivityInDegree
+   * @param {array[string]} equations Array of strings with boolean equations.
+   * @return {obj} Javascript object where obj[a] is the in-degree of node a.
+   */
+  ccBooleanAnalysis.connectivityInDegree = function(equations) {
+    var distances = this.distances(equations);
+    var nodes = Object.keys(distances);
+
+    var connectivity = {};
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node1 = nodes[i];
+      connectivity[node1] = 0;
+      for (var j = 0; j < nodes.length; j++) {
+        var node2 = nodes[j];
+
+        // is node1 connected to node2? (1 -> 2)
+        var connected = (node2 in distances[node1]);
+        if (connected) {
+          connectivity[node1] += 1;
+        }
+      }
+    }
+    return connectivity;
+  }
+
+  /**
+   * @method ccBooleanAnalysis.connectivityOutDegree
+   * @param {array[string]} equations Array of strings with boolean equations.
+   * @return {obj} Javascript object where obj[a] is the out-degree of node a.
+   */
+  ccBooleanAnalysis.connectivityOutDegree = function(equations) {
+    var distances = this.distances(equations);
+    var nodes = Object.keys(distances);
+
+    var connectivity = {};
+
+    // initialize connectivity matrix
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      connectivity[node] = 0;
+    }
+
+    // compute degrees
+    for (var i = 0; i < nodes.length; i++) {
+      var node1 = nodes[i];
+      for (var j = 0; j < nodes.length; j++) {
+        var node2 = nodes[j];
+
+        // is node1 connected to node2? (1 -> 2)
+        var connected = (node2 in distances[node1]);
+        if (connected) {
+          connectivity[node2] += 1;
+        }
+      }
+    }
+    return connectivity;
+  }
+
+  /**
+   * @method ccBooleanAnalysis.connectivityDegree
+   * @param {array[string]} equations Array of strings with boolean equations.
+   * @return {obj} Javascript object where obj[a] is the degree (in-degree + out-degree) of node a.
+   */
+  ccBooleanAnalysis.connectivityDegree = function(equations) {
+    var distances = this.distances(equations);
+    var nodes = Object.keys(distances);
+
+    var connectivity = {};
+
+    // initialize connectivity matrix
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      connectivity[node] = 0;
+    }
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node1 = nodes[i];
+      for (var j = 0; j < nodes.length; j++) {
+        var node2 = nodes[j];
+
+        // is node1 connected to node2? (1 -> 2)
+        var connected = (node2 in distances[node1]);
+        if (connected) {
+          connectivity[node1] += 1;
+          connectivity[node2] += 1;
+        }
+      }
+    }
+    return connectivity;
+  }
+
+  /**
+   * @method ccBooleanAnalysis.connectivityDistributionGraph
+   * @param {array[string]} equations Array of strings with boolean equations.
+   * @return {obj} Javascript object with keys inDegree, outDegree, and degree, following same format
+   * as those respective functions in ccBooleanAnalysis library.
+   */
+  ccBooleanAnalysis.connectivityDistributionGraph = function(equations) {
+    return {
+      'inDegree': ccBooleanAnalysis.connectivityInDegree(equations),
+      'outDegree': ccBooleanAnalysis.connectivityOutDegree(equations),
+      'degree': ccBooleanAnalysis.connectivityDegree(equations)
+    }
+  }
+
+  /**
    * @method ccBooleanAnalysis.averageDistance
    * @param {array[string]} equations Array of strings with boolean equations.
    * @return {obj} Javascript object where obj[node] = average connectivity of the node.
