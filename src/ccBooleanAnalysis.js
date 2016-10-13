@@ -7,7 +7,6 @@
 //   'use strict';
   /* External Modules */
   var jsep = require('jsep');
-  var $ = require('jquery');
   var Queue = require('./queue.js').Queue;
   var Logic = require('logic-solver');
 
@@ -262,8 +261,8 @@
         data: []
       };
 
-      _convertToNegationForm(parse_tree);
-      _sortTerms(parse_tree, terms, label_pos_neg);
+      this._convertToNegationForm(parse_tree);
+      this._sortTerms(parse_tree, terms, label_pos_neg);
 
       // Here, we disregard whether a term is positive or negative
       // Annotate all terms on the graph
@@ -351,8 +350,8 @@
           cycles.data.push(cycle.reverse());
         }
       } else if (!(visited[neighbor])) {
-        var visited_clone = this._clone(visited);
-        var in_progress_clone = this._clone(in_progress);
+        var visited_clone = ccBooleanAnalysis._clone(visited);
+        var in_progress_clone = ccBooleanAnalysis._clone(in_progress);
         var stack_clone = stack.slice(0);
         _findCycles(graph, cycles, neighbor, stack_clone, in_progress_clone, visited_clone, global_visited, find_parities);
       }
@@ -862,8 +861,55 @@
   ////////////////////////////////////////
 
   // Clone a javascript object / dictionary
-  ccBooleanAnalysis._clone = function(dict) {
-    return $.extend({}, dict);
+  ccBooleanAnalysis._clone = function(item) {
+      if (!item) { return item; } // null, undefined values check
+
+      var types = [ Number, String, Boolean ],
+          result;
+
+      // normalizing primitives if someone did new String('aaa'), or new Number('444');
+      types.forEach(function(type) {
+          if (item instanceof type) {
+              result = type( item );
+          }
+      });
+
+      if (typeof result == "undefined") {
+          if (Object.prototype.toString.call( item ) === "[object Array]") {
+              result = [];
+              item.forEach(function(child, index, array) {
+                  result[index] = ccBooleanAnalysis._clone( child );
+              });
+          } else if (typeof item == "object") {
+              // testing that this is DOM
+              if (item.nodeType && typeof item.cloneNode == "function") {
+                  var result = item.cloneNode( true );
+              } else if (!item.prototype) { // check that this is a literal
+                  if (item instanceof Date) {
+                      result = new Date(item);
+                  } else {
+                      // it is an object literal
+                      result = {};
+                      for (var i in item) {
+                          result[i] = ccBooleanAnalysis._clone( item[i] );
+                      }
+                  }
+              } else {
+                  // depending what you would like here,
+                  // just keep the reference, or create new object
+                  if (false && item.constructor) {
+                      // would not advice to do that, reason? Read below
+                      result = new item.constructor();
+                  } else {
+                      result = item;
+                  }
+              }
+          } else {
+              result = item;
+          }
+      }
+
+      return result;
   }
 
   // Get all values in a dictionary
@@ -1257,6 +1303,34 @@
     }
 
     return transitions;
+  }
+
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ////        Attractor Search
+  ////
+  ////////////////////////////////////////
+  ////////////////////////////////////////
+  ccBooleanAnalysis.attractorSearchExhaustive = function(equations) {
+    var st_graph = ccBooleanAnalysis.stateTransitionGraph(equations);
+
+
+
+    console.log("st_graph");
+    console.log(st_graph);
+    console.log("JSON.stringify(st_graph[0])");
+    console.log(JSON.stringify(st_graph[0]));
+
+  }
+
+  ccBooleanAnalysis.attractorSearchHeuristic = function(equations, num_runs, depth) {
+    var attractors = [];
+    var st_graph = ccBooleanAnalysis.stateTransitionGraph(equations);
+
+    for (i = 0; i < num_runs; i++) {
+      random_idx = Math.floor((Math.random() * st_graph.length));
+      c_i = st_graph[st_graph];
+    }
   }
 
   ////////////////////////////////////////
