@@ -2,7 +2,7 @@
   "name": "ccbooleananalysis",
   "version": "1.0.0",
   "description": "Boolean-based representations of Biological Systems",
-  "main": "gulpfile.js",
+  "main": "build/ccBooleanAnalysis.js",
   "dependencies": {
     "jquery": "^3.1.0",
     "jsep": "^0.3.0",
