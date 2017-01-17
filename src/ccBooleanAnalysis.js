@@ -205,7 +205,7 @@
      const conjuctions_hashtable = this.getDNFObjectEncoding(s);
 
      const final_conjuctions = [];
-     for (const key in conjuctions_hashtable) {
+     for (const key of conjuctions_hashtable) {
        const conjuctions = conjuctions_hashtable[key];
 
        for (const conjuction of conjuctions) {
