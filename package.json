@@ -1,6 +1,6 @@
 {
   "name": "ccbooleananalysis",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Boolean-based representations of Biological Systems",
   "main": "build/ccBooleanAnalysis.js",
   "dependencies": {
