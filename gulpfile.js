@@ -1,9 +1,11 @@
 // include gulp
-var gulp = require('gulp');
+var gulp = require('gulp'),
+    babel = require('gulp-babel'),
+    webpack = require('webpack-stream');
 
 // include plug-ins
 var jshint = require('gulp-jshint');
-var webpack = require('webpack-stream');
+
 
 // JS hint task
 gulp.task('jshint', function() {
@@ -14,15 +16,30 @@ gulp.task('jshint', function() {
 
 // JS concat, strip debugging and minify
 gulp.task('scripts', function() {
-  return gulp.src('src/ccBooleanAnalysis.js')
-    .pipe(webpack({
-      output: {
-        filename: "ccBooleanAnalysis.js",
-        library: "ccBooleanAnalysis",
-        libraryTarget: "umd"
-      }
-    }))
-    .pipe(gulp.dest('./build/'))
+    return gulp.src('src/ccBooleanAnalysis.js')
+  .pipe(webpack({
+  entry: './src/ccBooleanAnalysis.js',
+  output: {
+    filename: 'ccBooleanAnalysis.js',
+    library: 'ccBooleanAnalysis',
+    libraryTarget: "umd"
+  },
+  
+  //debug:true,
+  module:{
+  loaders: [
+    {
+      exclude: /(node_modules|bower_components)/,
+      query: {
+        presets: ['es2015']
+      },
+      loader: 'babel' // 'babel-loader' is also a legal name to reference
+    }
+  ]
+  }
+  
+  }))
+  .pipe(gulp.dest('build/'));
 });
 
 // default gulp task
@@ -32,3 +49,6 @@ gulp.task('default', function () {
     gulp.run('jshint', 'scripts');
   });
 });
+
+
+
