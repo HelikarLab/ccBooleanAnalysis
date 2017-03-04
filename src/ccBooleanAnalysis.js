@@ -747,7 +747,7 @@
         if (!(negative_regulator_name in negative_holder.data)) {
           negative_holder.data[negative_regulator_name] = {
             component: negative_regulator_name,
-            type: true
+            type: false
           };
         }
       } else { // kOR
