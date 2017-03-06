@@ -43,17 +43,21 @@
     // Instead, we conver to the single unaryOp
     // that currently works.
     // https://github.com/soney/jsep/issues/43
-    let find = 'NOT';
-    let re = new RegExp(find, 'g');
-    s = s.replace(re, '~');
+    // let find = '\b(NOT)\b';
+    // let re = new RegExp(find, 'g');
+    if(s !== "NOT" && s !== 'OR' && s !== 'AND'){
+      s = s.replace(/\b(NOT)\b/, '~');
+      s = s.replace(/\b(AND)\b/, '*');
+      s = s.replace(/\b(OR)\b/, '+');
+    }
 
-    find = 'AND';
-    re = new RegExp(find, 'g');
-    s = s.replace(re, '*');
 
-    find = 'OR';
-    re = new RegExp(find, 'g');
-    s = s.replace(re, '+');
+    // find = '\b(AND)\b';
+    // re = new RegExp(find, 'g');
+
+    // find = '(OR)';
+    // re = new RegExp(find, 'g');
+
 
     return jsep(s);
   };
