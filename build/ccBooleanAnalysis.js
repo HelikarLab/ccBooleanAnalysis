@@ -103,17 +103,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Instead, we conver to the single unaryOp
 	  // that currently works.
 	  // https://github.com/soney/jsep/issues/43
-	  var find = 'NOT';
-	  var re = new RegExp(find, 'g');
-	  s = s.replace(re, '~');
+	  // let find = '\b(NOT)\b';
+	  // let re = new RegExp(find, 'g');
+	  if (s !== "NOT" && s !== 'OR' && s !== 'AND') {
+	    s = s.replace(/\b(NOT)\b/, '~');
+	    s = s.replace(/\b(AND)\b/, '*');
+	    s = s.replace(/\b(OR)\b/, '+');
+	  }
 
-	  find = 'AND';
-	  re = new RegExp(find, 'g');
-	  s = s.replace(re, '*');
+	  // find = '\b(AND)\b';
+	  // re = new RegExp(find, 'g');
 
-	  find = 'OR';
-	  re = new RegExp(find, 'g');
-	  s = s.replace(re, '+');
+	  // find = '(OR)';
+	  // re = new RegExp(find, 'g');
+
 
 	  return jsep(s);
 	};
@@ -1061,7 +1064,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (!(negative_regulator_name in negative_holder.data)) {
 	        negative_holder.data[negative_regulator_name] = {
 	          component: negative_regulator_name,
-	          type: true
+	          type: false
 	        };
 	      }
 	    } else {
