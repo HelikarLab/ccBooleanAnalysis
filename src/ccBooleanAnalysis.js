@@ -9,7 +9,7 @@
   /*jshint esversion: 6 */
 
   var jsep = require('jsep');
-  var Queue = require('./queue.js').Queue;
+  var Queue = require('./queue.js');
   var Logic = require('logic-solver');
 
   /* Module setup */
@@ -45,10 +45,11 @@
     // https://github.com/soney/jsep/issues/43
     // let find = '\b(NOT)\b';
     // let re = new RegExp(find, 'g');
+
     if(s !== "NOT" && s !== 'OR' && s !== 'AND'){
-      s = s.replace(/\b(NOT)\b/, '~');
-      s = s.replace(/\b(AND)\b/, '*');
-      s = s.replace(/\b(OR)\b/, '+');
+      s = s.replace(/\b(NOT)\b/gi, '~');
+      s = s.replace(/\b(AND)\b/gi, '*');
+      s = s.replace(/\b(OR)\b/gi, '+');
     }
 
 
@@ -58,6 +59,7 @@
     // find = '(OR)';
     // re = new RegExp(find, 'g');
 
+    console.log(s);
 
     return jsep(s);
   };

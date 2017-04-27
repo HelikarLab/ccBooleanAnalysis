@@ -62,3 +62,5 @@ http://creativecommons.org/publicdomain/zero/1.0/legalcode
    this.peek = () => queue.length > 0 ? queue[offset] : undefined;
 
  }
+
+ module.exports = Queue;

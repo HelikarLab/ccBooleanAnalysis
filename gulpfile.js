@@ -24,7 +24,7 @@ gulp.task('scripts', function() {
     library: 'ccBooleanAnalysis',
     libraryTarget: "umd"
   },
-  
+
   //debug:true,
   module:{
   loaders: [
@@ -37,7 +37,7 @@ gulp.task('scripts', function() {
     }
   ]
   }
-  
+
   }))
   .pipe(gulp.dest('build/'));
 });
@@ -49,6 +49,3 @@ gulp.task('default', function () {
     gulp.run('jshint', 'scripts');
   });
 });
-
-
-
