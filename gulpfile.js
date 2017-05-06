@@ -24,8 +24,8 @@ gulp.task('scripts', function() {
     library: 'ccBooleanAnalysis',
     libraryTarget: "umd"
   },
-
-  //debug:true,
+  debug:true,
+  devtool: 'source-map',
   module:{
   loaders: [
     {
