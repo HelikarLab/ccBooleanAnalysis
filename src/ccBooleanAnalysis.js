@@ -59,8 +59,6 @@
     // find = '(OR)';
     // re = new RegExp(find, 'g');
 
-    console.log(s);
-
     return jsep(s);
   };
 
@@ -485,8 +483,10 @@
        const node1 = nodes[i];
        for (let j = i + 1; j < nodes.length; j++) {
          const node2 = nodes[j];
-         total_distance += distances[node1][node2];
-         node_count += 1;
+         if(distances[node1][node2]){
+           total_distance += distances[node1][node2];
+           node_count += 1;
+         }
        }
      }
      return total_distance / node_count;
@@ -522,23 +522,19 @@
     * @return {obj} Javascript object where obj[a] is the in-degree of node a.
     */
    ccBooleanAnalysis.connectivityInDegree = function(equations) {
-     const distances = this.distances(equations);
-     const nodes = Object.keys(distances);
+     let connectivity = {};
+     let graph = this._getGraph(equations).data;
+     let nodes = Object.keys(this.distances(equations));
+     nodes.forEach(e => (conn[e] = 0));
 
-     const connectivity = {};
-
-     for (const node1 of nodes) {
-       connectivity[node1] = 0;
-
-       for (const node2 of nodes) {
-         // is node1 connected to node2? (1 -> 2)
-         const connected = (node2 in distances[node1]);
-         if (connected) {
-           connectivity[node1] += 1;
+     for(let node in graph){
+         let outNodes = graph[node];
+         if(outNodes.length){
+           outNodes.forEach(e => {
+             (e in connectivity) ? connectivity[e]++ : connectivity[e] = 0
+           });
          }
-       }
      }
-
      return connectivity;
    };
 
@@ -548,30 +544,18 @@
     * @return {obj} Javascript object where obj[a] is the out-degree of node a.
     */
    ccBooleanAnalysis.connectivityOutDegree = function(equations) {
-     const distances = this.distances(equations);
-     const nodes = Object.keys(distances);
+     let connectivity = {};
 
-     const connectivity = {};
+     let dt = ccbooleananalysis._getGraph(equations).data;
+     let nodes = Object.keys(ccbooleananalysis.distances(equations));
+     nodes.forEach(e => (connectivity[e] = 0));
 
-     // initialize connectivity matrix
-     for (var i = 0; i < nodes.length; i++) {
-       const node = nodes[i];
-       connectivity[node] = 0;
-     }
+     for(let k in dt){
+          connectivity[k] = new Set(dt[k]).size;
+      }
 
-     // compute degrees
-     for (let i = 0; i < nodes.length; i++) {
-       const node1 = nodes[i];
-
-       for (const node2 of nodes) {
-         // is node1 connected to node2? (1 -> 2)
-         const connected = (node2 in distances[node1]);
-         if (connected) {
-           connectivity[node2] += 1;
-         }
-       }
-     }
      return connectivity;
+
    };
 
    /**
@@ -580,29 +564,18 @@
     * @return {obj} Javascript object where obj[a] is the degree (in-degree + out-degree) of node a.
     */
    ccBooleanAnalysis.connectivityDegree = function(equations) {
-     const distances = this.distances(equations);
-     const nodes = Object.keys(distances);
 
-     const connectivity = {};
+     let connectivity = {};
+     let inDegree = this.connectivityInDegree(equations);
+     let outDegree = this.connectivityOutDegree(equations)
 
-     // initialize connectivity matrix
-     for (var i = 0; i < nodes.length; i++) {
-       const node = nodes[i];
-       connectivity[node] = 0;
+     for(let n in inDegree){
+        if(n in inDegree && n in outDegree)
+          connectivity[n] = inDegree[n] + outDegree[n];
+        else
+          connectivity[n] = 0;
      }
 
-     for (let i = 0; i < nodes.length; i++) {
-       const node1 = nodes[i];
-
-       for (const node2 of nodes) {
-         // is node1 connected to node2? (1 -> 2)
-         const connected = (node2 in distances[node1]);
-         if (connected) {
-           connectivity[node1] += 1;
-           connectivity[node2] += 1;
-         }
-       }
-     }
      return connectivity;
    };
 

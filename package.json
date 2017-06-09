@@ -11,16 +11,28 @@
         "type": "range"
       },
       "/home/varun/WebstormProjects/ccfrontend"
+    ],
+    [
+      {
+        "raw": "ccbooleananalysis@1.0.9",
+        "scope": null,
+        "escapedName": "ccbooleananalysis",
+        "name": "ccbooleananalysis",
+        "rawSpec": "1.0.9",
+        "spec": "1.0.9",
+        "type": "version"
+      },
+      "/home/varun/Desktop/JS/cc"
     ]
   ],
-  "_from": "ccbooleananalysis@>=1.0.0 <2.0.0",
-  "_id": "ccbooleananalysis@1.0.5",
+  "_from": "ccbooleananalysis@1.0.9",
+  "_id": "ccbooleananalysis@1.0.9",
   "_inCache": true,
   "_location": "/ccbooleananalysis",
   "_nodeVersion": "6.9.1",
   "_npmOperationalInternal": {
-    "host": "packages-18-east.internal.npmjs.com",
-    "tmp": "tmp/ccbooleananalysis-1.0.5.tgz_1489602980420_0.42236627847887576"
+    "host": "s3://npm-registry-packages",
+    "tmp": "tmp/ccbooleananalysis-1.0.9.tgz_1495561319457_0.11893934709951282"
   },
   "_npmUser": {
     "name": "helikarlab",
@@ -29,22 +41,23 @@
   "_npmVersion": "3.10.8",
   "_phantomChildren": {},
   "_requested": {
-    "raw": "ccbooleananalysis@^1.0.0",
+    "raw": "ccbooleananalysis@1.0.9",
     "scope": null,
     "escapedName": "ccbooleananalysis",
     "name": "ccbooleananalysis",
-    "rawSpec": "^1.0.0",
-    "spec": ">=1.0.0 <2.0.0",
-    "type": "range"
+    "rawSpec": "1.0.9",
+    "spec": "1.0.9",
+    "type": "version"
   },
   "_requiredBy": [
+    "#USER",
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/ccbooleananalysis/-/ccbooleananalysis-1.0.5.tgz",
-  "_shasum": "c14cec66cd2be94ec9e1322c4693e79520953f5b",
+  "_resolved": "https://registry.npmjs.org/ccbooleananalysis/-/ccbooleananalysis-1.0.9.tgz",
+  "_shasum": "a0b8626f55e975062cbac284068e88bb588dfcca",
   "_shrinkwrap": null,
-  "_spec": "ccbooleananalysis@^1.0.0",
-  "_where": "/home/varun/WebstormProjects/ccfrontend",
+  "_spec": "ccbooleananalysis@1.0.9",
+  "_where": "/home/varun/Desktop/JS/cc",
   "author": {
     "name": "Joshua Meier",
     "email": "jmeier@college.harvard.edu"
@@ -71,8 +84,8 @@
   },
   "directories": {},
   "dist": {
-    "shasum": "c14cec66cd2be94ec9e1322c4693e79520953f5b",
-    "tarball": "https://registry.npmjs.org/ccbooleananalysis/-/ccbooleananalysis-1.0.5.tgz"
+    "shasum": "a0b8626f55e975062cbac284068e88bb588dfcca",
+    "tarball": "https://registry.npmjs.org/ccbooleananalysis/-/ccbooleananalysis-1.0.9.tgz"
   },
   "gitHead": "818099043b47cc6b8b88372c0f29caf297afc1f2",
   "license": "ISC",
@@ -91,5 +104,5 @@
     "url": "ssh://jmeier@helikarlab.org:29418/ccBooleanAnalysis"
   },
   "scripts": {},
-  "version": "1.0.7"
+  "version": "1.0.9"
 }
