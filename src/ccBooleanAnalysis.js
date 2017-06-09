@@ -525,7 +525,7 @@
      let connectivity = {};
      let graph = this._getGraph(equations).data;
      let nodes = Object.keys(this.distances(equations));
-     nodes.forEach(e => (conn[e] = 0));
+     nodes.forEach(e => (connectivity[e] = 0));
 
      for(let node in graph){
          let outNodes = graph[node];
@@ -555,7 +555,6 @@
       }
 
      return connectivity;
-
    };
 
    /**
