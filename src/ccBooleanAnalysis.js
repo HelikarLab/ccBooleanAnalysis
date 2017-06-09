@@ -546,8 +546,8 @@
    ccBooleanAnalysis.connectivityOutDegree = function(equations) {
      let connectivity = {};
 
-     let dt = ccbooleananalysis._getGraph(equations).data;
-     let nodes = Object.keys(ccbooleananalysis.distances(equations));
+     let dt = this._getGraph(equations).data;
+     let nodes = Object.keys(this.distances(equations));
      nodes.forEach(e => (connectivity[e] = 0));
 
      for(let k in dt){
