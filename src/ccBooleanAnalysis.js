@@ -1193,7 +1193,8 @@
        '~':'!'
      };
 
-     let parsable_expression = expression.replace(/AND|OR|~/gi, matched => mapObj[matched]);
+     let parsable_expression = expression.replace(/([^a-z0-9$])(AND|OR|~)([\s^a-z0-9$])/gi, 
+            (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||""));
 
      // insert the assignments into the parsable_expression
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
@@ -1206,7 +1207,8 @@
      // regexes / assignments should be generated using ccBooleanAnalysis._getRegexes.
      // This function applies those regexes to an expression.
      for (const regex of regexes) {
-       parsable_expression = parsable_expression.replace(regex[0], regex[1]);
+       parsable_expression = parsable_expression.replace(regex[0], 
+                (a,v1,id,v2)=> ((v1||"")+regex[1]+(v2||"")) );
      }
 
      return parsable_expression;
@@ -1227,7 +1229,7 @@
      const regexes = [];
      for (let key in assignments) {
        const assignment = assignments[key];
-       const re = new RegExp(key, 'g');
+       const re = new RegExp("(^|[^0-9A-Za-z_$])("+key+")([^$A-Za-z_]|$)", 'g');
        regexes.push([re, assignment.toString()]);
      }
      return regexes;
@@ -1246,12 +1248,11 @@
    };
 
    ccBooleanAnalysis.stateTransitionGraph = function(equations) {
-     // First, grab all the terms in the equations.
-     const terms = [];
-     for (var i = 0; i < equations.length; i++) {
-       const equation = equations[i];
-       terms.push(equation.split('=')[0]);
-     }
+     // First, extract all identifiers from equations.
+     let terms = {};
+     equations.forEach((e)=>e.replace(/[$A-Z_][0-9A-Z_$]*/gi, (id)=>{
+        terms[id] = true; return id;}));
+     terms = Object.keys(terms);
 
      // Iterate through each possible combination of assignments
      // transitions is an array.
