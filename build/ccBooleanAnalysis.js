@@ -758,7 +758,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	
 	  for (var node in graph) {
-	    var outNodes = graph[node];
+	    var outNodes = Array.from(new Set(graph[node]));
+	
 	    if (outNodes.length) {
 	      outNodes.forEach(function (e) {
 	        e in connectivity ? connectivity[e]++ : connectivity[e] = 0;
@@ -777,6 +778,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var connectivity = {};
 	
 	  var dt = this._getGraph(equations).data;
+	  console.log(dt);
 	  var nodes = Object.keys(this.distances(equations));
 	  nodes.forEach(function (e) {
 	    return connectivity[e] = 0;
