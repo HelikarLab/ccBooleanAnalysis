@@ -52,6 +52,7 @@
       s = s.replace(/\b(OR)\b/gi, '+');
     }
 
+    s = s.replace(/([A-Z][a-z][0-9])+(\+|\*|~)/, '_');
 
     // find = '\b(AND)\b';
     // re = new RegExp(find, 'g');
@@ -528,7 +529,8 @@
      nodes.forEach(e => (connectivity[e] = 0));
 
      for(let node in graph){
-         let outNodes = graph[node];
+         let outNodes = Array.from(new Set(graph[node]));
+
          if(outNodes.length){
            outNodes.forEach(e => {
              (e in connectivity) ? connectivity[e]++ : connectivity[e] = 0
@@ -547,6 +549,7 @@
      let connectivity = {};
 
      let dt = this._getGraph(equations).data;
+     console.log(dt);
      let nodes = Object.keys(this.distances(equations));
      nodes.forEach(e => (connectivity[e] = 0));
 
@@ -1193,7 +1196,7 @@
        '~':'!'
      };
 
-     let parsable_expression = expression.replace(/([^a-z0-9$])(AND|OR|~)([\s^a-z0-9$])/gi, 
+     let parsable_expression = expression.replace(/([^a-z0-9$])(AND|OR|~)([\s^a-z0-9$])/gi,
             (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||""));
 
      // insert the assignments into the parsable_expression
@@ -1207,7 +1210,7 @@
      // regexes / assignments should be generated using ccBooleanAnalysis._getRegexes.
      // This function applies those regexes to an expression.
      for (const regex of regexes) {
-       parsable_expression = parsable_expression.replace(regex[0], 
+       parsable_expression = parsable_expression.replace(regex[0],
                 (a,v1,id,v2)=> ((v1||"")+regex[1]+(v2||"")) );
      }
 
