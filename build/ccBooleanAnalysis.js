@@ -777,15 +777,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	ccBooleanAnalysis.connectivityOutDegree = function (equations) {
 	  var connectivity = {};
 	
-	  var dt = this._getGraph(equations).data;
-	  console.log(dt);
+	  var graph = this._getGraph(equations).data;
 	  var nodes = Object.keys(this.distances(equations));
 	  nodes.forEach(function (e) {
 	    return connectivity[e] = 0;
 	  });
 	
-	  for (var k in dt) {
-	    connectivity[k] = new Set(dt[k]).size;
+	  for (var k in graph) {
+	    connectivity[k] = new Set(graph[k]).size;
 	  }
 	
 	  return connectivity;
@@ -1589,11 +1588,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	////////////////////////////////////////
 	ccBooleanAnalysis.attractorSearchExhaustive = function (equations) {
 	  var st_graph = ccBooleanAnalysis.stateTransitionGraph(equations);
-	
-	  //  console.log("st_graph");
-	  //  console.log(st_graph);
-	  //  console.log("JSON.stringify(st_graph[0])");
-	  //  console.log(JSON.stringify(st_graph[0]));
 	};
 	
 	ccBooleanAnalysis.attractorSearchHeuristic = function (equations, num_runs, depth) {

@@ -548,13 +548,12 @@
    ccBooleanAnalysis.connectivityOutDegree = function(equations) {
      let connectivity = {};
 
-     let dt = this._getGraph(equations).data;
-     console.log(dt);
+     let graph = this._getGraph(equations).data;
      let nodes = Object.keys(this.distances(equations));
      nodes.forEach(e => (connectivity[e] = 0));
 
-     for(let k in dt){
-          connectivity[k] = new Set(dt[k]).size;
+     for(let k in graph){
+          connectivity[k] = new Set(graph[k]).size;
       }
 
      return connectivity;
@@ -1298,13 +1297,6 @@
    ////////////////////////////////////////
    ccBooleanAnalysis.attractorSearchExhaustive = equations => {
      const st_graph = ccBooleanAnalysis.stateTransitionGraph(equations);
-
-
-
-    //  console.log("st_graph");
-    //  console.log(st_graph);
-    //  console.log("JSON.stringify(st_graph[0])");
-    //  console.log(JSON.stringify(st_graph[0]));
 
    };
 
