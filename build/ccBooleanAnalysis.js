@@ -52,7 +52,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
@@ -985,18 +985,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return regulators;
 	};
 	
+	var formulaToStr = function formulaToStr(f) {
+	  var cons = ccBooleanAnalysis._constants;
+	  switch (f.type) {
+	    case cons.kBinaryExpression:
+	      return '(' + formulaToStr(f.left) + f.operator + formulaToStr(f.right) + ')';
+	    case cons.kUnaryExpression:
+	      return '(' + f.operator + '(' + formulaToStr(f.argument) + '))';
+	    case cons.kIdentifier:
+	      return f.name;
+	    default:
+	      throw new Error("Unexpected node (type >>" + f.type + "<<) in parse tree");
+	  }
+	};
+	
 	// Recursively finds all terms in a parse_tree
 	// and store them in a terms data structure,
 	// which should be structured as
 	// {'data': []}.
 	var _getTerms = function _getTerms(parse_tree, terms) {
-	  if (parse_tree.operator == ccBooleanAnalysis._constants.kAND || parse_tree.operator == ccBooleanAnalysis._constants.kOR) {
-	    _getTerms(parse_tree.left, terms);
-	    _getTerms(parse_tree.right, terms);
-	  } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
-	    _getTerms(parse_tree.argument, terms);
-	  } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
-	    terms.data.push(parse_tree.name);
+	  var cons = ccBooleanAnalysis._constants;
+	  switch (parse_tree.type) {
+	    case cons.kBinaryExpression:
+	      _getTerms(parse_tree.left, terms);
+	      _getTerms(parse_tree.right, terms);
+	      break;
+	    case cons.kUnaryExpression:
+	      _getTerms(parse_tree.argument, terms);
+	      break;
+	    case cons.kIdentifier:
+	      terms[parse_tree.name] = true;
+	      break;
 	  }
 	};
 	
@@ -1032,34 +1051,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *     "components" - array of component names (variables in parsed expression), this should contain at least one component
 	 */
 	ccBooleanAnalysis.getBiologicalConstructs = function (s) {
-	  // First, check for absent state
-	  // If structure is A OR ~B:
-	  //    get all terms in A
-	  //    get all terms in B
-	  // If the two arrays are the same:
-	  //    then set parse tree = A and absentState = false
-	  // Else:
-	  //    then set parse tree = original parse tree, absentState = true
 	
 	  var pt = this.getParseTree(s);
-	  var absentState = false,
-	      data_left = void 0,
-	      data_right = void 0;
-	  if (pt.operator == ccBooleanAnalysis._constants.kOR && pt.right.type == ccBooleanAnalysis._constants.kUnaryExpression) {
-	    data_left = { 'data': [] };
-	    data_right = { 'data': [] };
 	
-	    this._getTerms(pt.left, data_left);
-	    this._getTerms(pt.right.argument, data_right);
-	
-	    var isSuperset = data_left.data.every(function (val) {
-	      return data_right.data.includes(val);
-	    });
-	
-	    if (isSuperset) {
-	      pt = pt.left;
-	      absentState = true;
-	    }
+	  //check for absent state
+	  var absentState = false;
+	  var terms = {};
+	  _getTerms(pt, terms);
+	  for (var k in terms) {
+	    terms[k] = false;
+	  }if (this._evaluateState(formulaToStr(pt), this._getRegexes(terms))) {
+	    //if absent state is present, extract it from the definition and get new parse tree
+	    absentState = true;
+	    s = '(' + s + ')*(' + Object.keys(terms).join('+') + ')';
+	    pt = this.getParseTree(s);
 	  }
 	
 	  // Continue with whatever parse_tree and absentState we have
@@ -1967,9 +1972,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = ccBooleanAnalysis;
 	// });
 
-/***/ }),
+/***/ },
 /* 1 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	//     JavaScript Expression Parser (JSEP) 0.3.0
 	//     JSEP may be freely distributed under the MIT License
@@ -2591,9 +2596,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}(this));
 
 
-/***/ }),
+/***/ },
 /* 2 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	"use strict";
 	
@@ -2668,9 +2673,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	module.exports = Queue;
 
-/***/ }),
+/***/ },
 /* 3 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	var MiniSat = __webpack_require__(4);
 	var _ = __webpack_require__(6);
@@ -4524,9 +4529,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = Logic;
 
 
-/***/ }),
+/***/ },
 /* 4 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	var C_MINISAT = __webpack_require__(5);
 	var _ = __webpack_require__(6);
@@ -4655,9 +4660,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = MiniSat;
 
 
-/***/ }),
+/***/ },
 /* 5 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(__dirname) {var C_MINISAT;
 	// This file is generated by the meteor/minisat repo.
@@ -4700,9 +4705,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	/* WEBPACK VAR INJECTION */}.call(exports, "/"))
 
-/***/ }),
+/***/ },
 /* 6 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;//     Underscore.js 1.8.3
 	//     http://underscorejs.org
@@ -6254,7 +6259,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}.call(this));
 
 
-/***/ })
+/***/ }
 /******/ ])
 });
 ;
