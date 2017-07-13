@@ -202,6 +202,45 @@
    };
 
   /**
+   * @method dnfToJsep
+   * @param {object} conjuctions_hashtable result of 
+   * @return {object} jsep representation of data
+   */
+   const dnfToJsep = function(conjuctions_hashtable) {
+     const cons = ccBooleanAnalysis._constants;
+     
+     let mkId = e => ({
+         type: cons.kIdentifier,
+         name: e
+     });
+     let mkNnary = (e,op) => {
+        let i = e.length;
+        if(i <= 1) return e[0];
+
+        let ret;
+        //iterative solution to make left associative parse tree
+        const mkBinary = (l, r) => (l ? {type: cons.kBinaryExpression, operator: op, left: l, right: r} : r);
+        e.forEach(e=>{ret = mkBinary(ret, e);});
+        return ret;
+     };
+     let mkUnary = e => ({
+         type: cons.kUnaryExpression,
+         argument: e,
+         operator: cons.kNOT
+     });
+
+     let final_conjuctions = [];
+     for (const key in conjuctions_hashtable) {
+       conjuctions_hashtable[key].forEach(conjuction => {
+         let items = conjuction[0].map(mkId).concat(conjuction[1].map(e => mkUnary(mkId(e))));
+         if(items.length) final_conjuctions.push(mkNnary(items, cons.kAND));
+       });
+     }
+
+     return mkNnary(final_conjuctions, cons.kOR);
+   };
+
+  /**
    * @method ccBooleanAnalysis.getDNFStringEncoding
    * @param {string} s A string representing the boolean expression that should be transformed.
    * @return {string} A string encoding of the boolean expression in DNF.
@@ -655,10 +694,62 @@
    *    - A and (B or C) --> (A and B) or (A and C)
    *
    * Recursively apply these techniques to reach DNF.
+
+   * Each regulator is structured as follows:
+   *     "component" - name of the given component (name of the variable in parsed expression)
+   *     "type" - false (negative regulator), true (positive regulator) (not mandatory - false is default)
+   *     "conditionRelation" - false (or = independent), true (and = cooperative) (not mandatory - false is default)
+   *     "conditions" - array of condition objects (described bellow) is not mandatory if given regulator does not have any conditions
+   *     "dominants" - array of regulators that are dominant over this regulator, not mandatory
+   *     "recessives" - array of regulators that this regulator is dominant over, not mandatory
+   *
+   *     condition object contains following properties:
+   *     "componentRelation" - false (or = independent), true (and = cooperative), not mandatory - false is default
+   *     "subConditionRelation" - false (or = independent), true (and = cooperative), not mandatory - false is default
+   *     "state" - false (inactive), true (active), not mandatory - false is default
+   *     "type" - false (unless), true (if when), not mandatory - false is default
+   *     "components" - array of component names (variables in parsed expression), this should contain at least one component
+   *     "conditions" - array of subcondition objects (described bellow), not mandatory
+   *
+   *     subcondition object contains following properties:
+   *     "componentRelation" - false (or = independent), true (and = cooperative), not mandatory - false is default
+   *     "state" - false (inactive), true (active), not mandatory - false is default
+   *     "type" - false (unless), true (if when), not mandatory - false is default
+   *     "components" - array of component names (variables in parsed expression), this should contain at least one component
+
+   
    */
    let getRegulators = parse_tree => {
+
+    const objEach = (o, f) => {
+        for(var k in o) f(o[k],k);
+    }
+    const objMap = (o, f) => {
+        let ret = {};
+        for(var k in o) ret[k] = f(o[k],k);
+        return ret;
+    }
+       
+       
+    let positive_regulators = {}, negative_regulators = {};
+    const addNegRegulator = (name) => (
+        negative_regulators[name] = negative_regulators[name] || {
+            component: name,
+            type: false
+        }
+    );
+    const addPosRegulator = (name) => (
+        positive_regulators[name] = positive_regulators[name] || {
+            component: name,
+            type: true,
+            conditionRelation: false,
+            conditions: []
+        }
+    );
+
+
+
     // Tree traversal methods
-    let positive_holder, negative_holder;
     const iterateAndTree = (positive_holder, negative_holder, parse_tree) => {
       if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
         positive_holder.data.push(parse_tree.name);
@@ -670,89 +761,156 @@
       }
     };
 
-    const iterateOrTree = (positive_holder, negative_holder, parse_tree) => {
+    const iterateOrTree = (parse_tree) => {
       if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
-        const and_positive_holder = {data: []};
-        const and_negative_holder = {data: []};
+        let and_positive_holder = {data: []};
+        let and_negative_holder = {data: []};
         iterateAndTree(and_positive_holder, and_negative_holder, parse_tree);
-        let first_positive_name;
 
-        // Setup positive regulators
-        if (and_positive_holder.data.length > 0) {
-          first_positive_name = and_positive_holder.data[0];
-          if (!(first_positive_name in positive_holder.data)) {
-            positive_holder.data[first_positive_name] = {
-              component: first_positive_name,
-              type: true,
-              conditionRelation: true,
-              conditions: [],
-            };
-          }
-          const condition_components = [];
-          for (var i = 1; i < and_positive_holder.data.length; i++) {
-            condition_components.push(and_positive_holder.data[i]);
-          }
-          positive_holder.data[first_positive_name].conditions.push({
-            state: true, // active
-            type: true, // if/when
-            components: condition_components
-          });
-        }
+        let positives = and_positive_holder.data;
+        let negatives = and_negative_holder.data;
 
-        // Setup negative regulators
-        for (let i = 0; i < and_negative_holder.data.length; i++) {
-          if (!(and_negative_holder.data[i] in negative_holder)) {
-            negative_holder.data[and_negative_holder.data[i]] = {
-              component: and_negative_holder.data[i],
-              type: false,
-              dominants: []
+        console.log("Positives "+JSON.stringify(positives)+" negatives"+JSON.stringify(negatives));
+        if(positives.length > 0){
+            let regulator = addPosRegulator(positives[0]);
+            regulator.isAlone = (positives.length <= 1 && negatives.length <= 0) || regulator.isAlone;
+
+            let cond = {
+                state: true, // active
+                type: true, // if/whencomponents.filter((_,idx)=>idx)]
+                componentRelation: true, //cooperative
+                components: positives.slice(1),
             };
-          }
-          if (and_positive_holder.length > 0) {
-            negative_holder.data[and_negative_holder.data[i]].dominants.push(positive_holder.data[first_positive_name]);
-          }
+            if(negatives.length){
+                cond.subConditionRelation = false;
+                cond.conditions = [{
+                    componentRelation: true, //cooperative
+                    state: false,    //inactive
+                    type: true, // if/whencomponents.filter((_,idx)=>idx)]
+                    components: negatives
+                }];
+            }
+            regulator.conditions.push(cond);
+        }else if(negatives.length > 0){
+            negatives.forEach(addNegRegulator);
         }
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
         // Add a positive regulator with no conditions
-        const positive_regulator_name = parse_tree.name;
-        if (!(positive_regulator_name in positive_holder.data)) {
-          positive_holder.data[positive_regulator_name] = {
-            component: positive_regulator_name,
-            type: true
-          };
-        }
+        addPosRegulator(parse_tree.name);
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
         // Add a negative regulator with no conditions
-        const negative_regulator_name = parse_tree.argument.name;
-        if (!(negative_regulator_name in negative_holder.data)) {
-          negative_holder.data[negative_regulator_name] = {
-            component: negative_regulator_name,
-            type: false
-          };
-        }
+        addNegRegulator(parse_tree.argument.name);
       } else { // kOR
-        iterateOrTree(positive_holder, negative_holder, parse_tree.left);
-        iterateOrTree(positive_holder, negative_holder, parse_tree.right);
+        iterateOrTree(parse_tree.left);
+        iterateOrTree(parse_tree.right);
       }
     };
 
-    // Main Logic
-    positive_holder = {data: {}};
-    negative_holder = {data: {}};
 
-    iterateOrTree(positive_holder, negative_holder, parse_tree);
+    // Main Logic - extract naive representation ( DNF as set of conditions and subconditions )
+    iterateOrTree(parse_tree);
 
-    const regulators = [];
-    for (let key in positive_holder.data) {
-      regulators.push(positive_holder.data[key]);
+
+
+    //extract negative regulators
+    let canNegatives = objMap(positive_regulators, regulator => {
+        let negatives = [];
+        if(!regulator.conditions || !regulator.conditions.length)
+            return [];
+
+        regulator.conditions.forEach(condition => {
+            if(condition.conditions && regulator.conditions.length){
+                condition.conditions.forEach(subCondition => {
+                    negatives.push([].concat(subCondition.components).sort());
+                });
+            }else{
+                negatives.push([]);
+            }
+        });
+
+        let inters = negatives[0];
+        for(let i = 1; i < negatives.length; ++i)
+            inters = ccBooleanAnalysis._get_intersection(inters, negatives[i]);
+        return inters;
+    });
+
+    while(true){
+        let occurences = {};
+        //count occurences negative components inside positives
+        objEach(canNegatives, a => a.forEach(v=>{
+            if(negative_regulators[v]) return;
+            if(!occurences[v]) occurences[v] = 0;
+            occurences[v]++;
+        }));
+        //find negative component with maximal occurence inside positives
+        let maxidx = undefined;
+        objEach(occurences, (v,k) => {if(!negative_regulators[k] && !positive_regulators[k] && occurences[k] > (occurences[maxidx] || -Infinity)){maxidx = k}});
+        if(maxidx){
+            let dominants = [];
+            objEach(positive_regulators, (regulator,name) => {
+                if(!regulator.conditions || 
+                        (regulator.conditions || []).length <= 0 ||
+                        canNegatives[name].indexOf(maxidx) < 0)
+                    return;
+
+                regulator.conditions.forEach(condition => {
+                    if(condition.conditions){
+                        condition.conditions.forEach(subCondition => {
+                            let pos = subCondition.components.indexOf(maxidx);
+                            if(pos >= 0){ 
+                                subCondition.components.splice(pos,1);
+                            }
+                        });
+                    }
+                });
+                dominants.push({component: regulator.component});
+            });
+            if(dominants.length)
+                addNegRegulator(maxidx).dominants = dominants;
+
+            //extract maxidx from the negative regulators
+            objEach(canNegatives, v=>{ if(v.indexOf(maxidx) >= 0) v.splice(v.indexOf(maxidx),1); });
+        }else{
+            break;
+        }
     }
-    for (let key in negative_holder.data) {
-      regulators.push(negative_holder.data[key]);
-    }
 
-    return regulators;
+
+    //extract subConditions without any components
+    objEach(positive_regulators, regulator => {
+        regulator.conditions.forEach(condition => {
+            if(condition.conditions){
+                condition.conditions = condition.conditions.filter(e=>e.components.length);
+            }
+        });
+    });
+
+
+
+
+    //transform regulators which have condition without components but this condition have subconditions with components to conditions
+    objEach(positive_regulators, regulator => {
+        regulator.conditions.forEach(condition => {
+            if(condition.components.length <= 0 && condition.conditions){
+                //has just negative regulators >> transform subcondition into condition
+                condition.conditions.forEach(subCondition => {
+                    regulator.conditions.push({
+                        componentRelation: true, //cooperative
+                        type: true, // if/whencomponents.filter((_,idx)=>idx)]
+                        state: false, //inactive
+                        components: subCondition.components
+                    });
+                });
+            }
+        });
+    });
+    objEach(positive_regulators, regulator => {
+        regulator.conditions = regulator.conditions.filter(condition => condition.components.length);
+    });
+
+    return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators));
   };
-  
+
   const formulaToStr = (f) => {
      let cons = ccBooleanAnalysis._constants;
      switch(f.type){
@@ -819,29 +977,75 @@
    *     "components" - array of component names (variables in parsed expression), this should contain at least one component
    */
    ccBooleanAnalysis.getBiologicalConstructs = function(s) {
-       
-    let pt = this.getParseTree(s);
+    let getKeys = (r,e) => {
+        if(Array.isArray(e)){ e.forEach((_,k)=>getKeys(r,e[k])); }
+        else if(e instanceof Object){ for(let k in e) getKeys(r,e[k]); }
+        else{ r[e]=false };
+        return r;
+    };
 
-    
-    //check for absent state
+    let dnf = this.getDNFObjectEncoding(s);
+
+    let keys = getKeys({},dnf);
+    let regexes = this._getRegexes(keys);
     let absentState = false;
-    let terms = {};
-    _getTerms(pt, terms);
-    for(var k in terms) terms[k] = false;
-    
-    if(this._evaluateState(formulaToStr(pt), this._getRegexes(terms))){
-        //if absent state is present, extract it from the definition and get new parse tree
-        absentState = true;
-        s = '('+s+')*('+Object.keys(terms).join('+')+')';
-        pt = this.getParseTree(s);
+
+    let tree;
+    if(this._evaluateState(s, regexes)){    //absent state is present
+//        console.log("MaybeAbsent");
+        let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join('+')+')')
+
+        let newkeys = getKeys({},newdnf);
+        let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
+        if(missing.length > 0){
+            //extracting absent state does not remove any component from equation >> have to fill it with the missing values
+            let newdnfarr = ccBooleanAnalysis._getValues(newdnf);
+            let elsize = e=>e[0].length+e[1].length;
+            let len = (e) => e.map(elsize);
+            newdnfarr.sort((v1,v2) => Math.max.apply(null,len(v2)) - Math.max.apply(null,len(v1)));
+            if(newdnfarr.length){
+                tree = dnfToJsep(newdnf);
+
+                newdnfarr[0].sort((v1,v2) => elsize(v2)-elsize(v1));
+                let orig = newdnfarr[0].shift();
+
+                if(newdnfarr.length <= 0){
+                    let k = orig[0].concat(orig[1]).sort().join("");
+                    delete newdnf[k];
+                }
+
+                let k = orig[0].concat(orig[1]).concat(missing).sort().join("");
+                if(!newdnf[k]){ newdnf[k] = []; }
+
+                //loop through state space of all missing elements
+                for (let i = 0; i < (1 << missing.length); i++) {
+                    let newd = [orig[0].map(e=>e),orig[1].map(e=>e)];
+                    for(let j = 0; j < missing.length; j++){
+                        newd[(i >> j) & 1].push(missing[j]);
+                    }
+                    newdnf[k].push(newd);
+                }
+
+                tree = dnfToJsep(newdnf);
+                absentState = true;
+                dnf = newdnf;
+            }else{
+                tree = this.getParseTree(s);
+            }
+        }else{
+            tree = dnfToJsep(newdnf);
+            absentState = true;
+            dnf = newdnf;
+        }
+    }else{
+        tree = this.getParseTree(s);
     }
-    
-     // Continue with whatever parse_tree and absentState we have
-    this._convertToNegationForm(pt);
-    this._pushDownAnds(pt);
-    const regulators = getRegulators(pt);
+
+    this._convertToNegationForm(tree);
+    this._pushDownAnds(tree);
+
     return {
-       regulators,
+       regulators: getRegulators(tree),
        absentState
      };
    };
@@ -1241,7 +1445,7 @@
      const regexes = [];
      for (let key in assignments) {
        const assignment = assignments[key];
-       const re = new RegExp("(^|[^0-9A-Za-z_$])("+key+")([^$A-Za-z_]|$)", 'g');
+       const re = new RegExp("(^|[^0-9A-Za-z_$])("+key+")([^$0-9A-Za-z_]|$)", 'g');
        regexes.push([re, assignment.toString()]);
      }
      return regexes;
@@ -1258,6 +1462,30 @@
 
      return new_assignments;
    };
+
+   ccBooleanAnalysis.getStateSpace = function(equation) {
+     let terms = {};
+     equation.replace(/[$A-Z_][0-9A-Z_$]*/gi, (id)=>{
+        terms[id] = true; return id;});
+     terms = Object.keys(terms).sort();
+
+     let assignments = {};
+     let ret = [terms.join(" ")];
+     for (let i = (2 << terms.length)-1; i >= 0; --i) {
+       let settings = i.toString(2);
+       while(settings.length < terms.length)
+          settings = "0"+settings;
+
+       terms.forEach((t,i)=>{
+           assignments[t] = settings[i] == '1';
+       });
+
+       let val = this._evaluateState(equation, this._getRegexes(assignments));
+       ret.push(settings+' '+val);
+     }
+     return ret;
+
+   }
 
    ccBooleanAnalysis.stateTransitionGraph = function(equations) {
      // First, extract all identifiers from equations.
@@ -1373,8 +1601,8 @@
     * @return {boolean} Whether the two expressions are equivalent.
     */
    ccBooleanAnalysis.compareBooleansSAT = function(s1, s2) {
-     const pt1 = this.getParseTree(s1);
-     const pt2 = this.getParseTree(s2);
+     const pt1 = typeof s1 === 'string' ? this.getParseTree(s1) : s1;
+     const pt2 = typeof s2 === 'string' ? this.getParseTree(s2) : s2;
 
      const logic_formula1 = this._buildLogicFormula(pt1);
      const logic_formula2 = this._buildLogicFormula(pt2);
