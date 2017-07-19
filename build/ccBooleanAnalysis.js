@@ -1009,7 +1009,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var positives = and_positive_holder.data;
 	      var negatives = and_negative_holder.data;
 	
-	      console.log("Positives " + JSON.stringify(positives) + " negatives" + JSON.stringify(negatives));
 	      if (positives.length > 0) {
 	        var regulator = addPosRegulator(positives[0]);
 	        regulator.isAlone = positives.length <= 1 && negatives.length <= 0 || regulator.isAlone;
@@ -1070,8 +1069,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }return inters;
 	  });
 	
-	  //    console.log(JSON.stringify(positive_regulators, null, 2));
-	  //    console.log("negatives "+JSON.stringify(canNegatives));
+	  //find negative regulators ( basically by groupping of subconditions )
 	
 	  var _loop = function _loop() {
 	    var occurences = {};
@@ -1091,10 +1089,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    });
 	    if (maxidx) {
-	      //            console.log("extracting "+maxidx);
-	      //            console.log(JSON.stringify(occurences));
 	      var dominants = [];
-	      //            console.log(JSON.stringify(Object.keys(positive_regulators)));
 	      objEach(positive_regulators, function (regulator, name) {
 	        if (!regulator.conditions || (regulator.conditions || []).length <= 0 || canNegatives[name].indexOf(maxidx) < 0) return;
 	
@@ -1127,7 +1122,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (_ret === 'break') break;
 	  }
 	
-	  //extract subConditions without any components
+	  //remove subConditions without any components
 	  objEach(positive_regulators, function (regulator) {
 	    regulator.conditions.forEach(function (condition) {
 	      if (condition.conditions) {
@@ -1250,10 +1245,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var regexes = this._getRegexes(keys);
 	  var absentState = false;
 	
+	  var hasPositive = false;
+	  for (var k in dnf) {
+	    dnf[k].forEach(function (v) {
+	      hasPositive = hasPositive || v[0].length > 0;
+	    });
+	  }
+	
 	  var tree = void 0;
-	  if (this._evaluateState(s, regexes)) {
+	  if (hasPositive && this._evaluateState(s, regexes)) {
 	    //absent state is present
-	    //        console.log("MaybeAbsent");
+	
 	    var newdnf = this.getDNFObjectEncoding('(' + s + ')*(' + Object.keys(keys).join('+') + ')');
 	
 	    var newkeys = getKeys({}, newdnf);
@@ -1281,13 +1283,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var orig = newdnfarr[0].shift();
 	
 	        if (newdnfarr.length <= 0) {
-	          var _k = orig[0].concat(orig[1]).sort().join("");
-	          delete newdnf[_k];
+	          var _k2 = orig[0].concat(orig[1]).sort().join("");
+	          delete newdnf[_k2];
 	        }
 	
-	        var k = orig[0].concat(orig[1]).concat(missing).sort().join("");
-	        if (!newdnf[k]) {
-	          newdnf[k] = [];
+	        var _k = orig[0].concat(orig[1]).concat(missing).sort().join("");
+	        if (!newdnf[_k]) {
+	          newdnf[_k] = [];
 	        }
 	
 	        //loop through state space of all missing elements
@@ -1300,7 +1302,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          for (var j = 0; j < missing.length; j++) {
 	            newd[i >> j & 1].push(missing[j]);
 	          }
-	          newdnf[k].push(newd);
+	          newdnf[_k].push(newd);
 	        }
 	
 	        tree = dnfToJsep(newdnf);
@@ -1686,16 +1688,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // These regexes can be generated with ccBooleanAnalysis._getRegexes(assignments).
 	  var mapObj = {
 	    'OR': '||',
+	    '+': '||',
+	    '*': '&&',
 	    'AND': '&&',
 	    '~': '!'
 	  };
 	
-	  var parsable_expression = expression.replace(/([^a-z0-9$])(AND|OR|~)([\s^a-z0-9$])/gi, function (a, v1, matched, v2) {
+	  var replFun = function replFun(a, v1, matched, v2) {
 	    return (v1 || "") + mapObj[matched] + (v2 || "");
-	  });
+	  };
+	  var parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 	
 	  // insert the assignments into the parsable_expression
 	  parsable_expression = this._applyRegexes(parsable_expression, regexes);
+	
 	  /*jshint -W061 */
 	  return eval(parsable_expression);
 	};
@@ -1759,7 +1765,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return regexes;
 	};
 	
-	ccBooleanAnalysis.evaluateStateTransition = function (equations, assignments) {
+	ccBooleanAnalysis.evaluateStateTransition = function (equations, terms, assignments, transitions) {
 	  var regexes = this._getRegexes(assignments);
 	  var new_assignments = {};
 	
@@ -1772,7 +1778,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var equation = _step10.value;
 	
 	      var sides = equation.split('=');
-	      new_assignments[sides[0]] = this._evaluateState(sides[1], regexes);
+	      new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
 	    }
 	  } catch (err) {
 	    _didIteratorError10 = true;
@@ -1789,7 +1795,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  }
 	
-	  return new_assignments;
+	  var missingTerms = terms.filter(function (t) {
+	    return new_assignments[t] === undefined;
+	  });
+	
+	  var _loop3 = function _loop3(i) {
+	    var na = {};
+	    for (var k in new_assignments) {
+	      na[k] = new_assignments[k];
+	    }missingTerms.forEach(function (term, j) {
+	      na[term] = i >> j & 1;
+	    });
+	    transitions.push([assignments, na]);
+	  };
+	
+	  for (var i = 0; i < 1 << missingTerms.length; i++) {
+	    _loop3(i);
+	  }
 	};
 	
 	ccBooleanAnalysis.getStateSpace = function (equation) {
@@ -1804,7 +1826,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var assignments = {};
 	  var ret = [terms.join(" ")];
 	
-	  var _loop3 = function _loop3(i) {
+	  var _loop4 = function _loop4(i) {
 	    var settings = i.toString(2);
 	    while (settings.length < terms.length) {
 	      settings = "0" + settings;
@@ -1817,7 +1839,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 	
 	  for (var i = (2 << terms.length) - 1; i >= 0; --i) {
-	    _loop3(i);
+	    _loop4(i);
 	  }
 	  return ret;
 	};
@@ -1844,22 +1866,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Each digit of this binary expression gives the setting
 	  // of a term in the evaluation.
 	  for (var i = 0; i < 2 << equations.length; i++) {
-	    var _settings = i.toString(2);
+	    //       const settings = i.toString(2);
 	    var assignments = {};
 	    for (var j = 0; j < terms.length; j++) {
 	      var term = terms[j];
-	      if (j < _settings.length) {
-	        if (_settings[j] == 1) {
-	          assignments[term] = true;
-	        } else {
-	          assignments[term] = false;
-	        }
-	      } else {
-	        assignments[term] = false;
-	      }
+	      assignments[term] = i >> j & 1;
 	    }
-	    var new_assignments = this.evaluateStateTransition(equations, assignments);
-	    transitions.push([assignments, new_assignments]);
+	    this.evaluateStateTransition(equations, terms, assignments, transitions);
 	  }
 	
 	  return transitions;
@@ -2097,8 +2110,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        depends_on[_term].push(parts[0]);
 	      }
 	
-	      for (var _k2 = 0; _k2 < individual_conjuction[1].length; _k2++) {
-	        var _term2 = individual_conjuction[1][_k2];
+	      for (var _k3 = 0; _k3 < individual_conjuction[1].length; _k3++) {
+	        var _term2 = individual_conjuction[1][_k3];
 	        if (!(_term2 in depends_on)) {
 	          depends_on[_term2] = [];
 	        }

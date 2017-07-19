@@ -770,7 +770,6 @@
         let positives = and_positive_holder.data;
         let negatives = and_negative_holder.data;
 
-        console.log("Positives "+JSON.stringify(positives)+" negatives"+JSON.stringify(negatives));
         if(positives.length > 0){
             let regulator = addPosRegulator(positives[0]);
             regulator.isAlone = (positives.length <= 1 && negatives.length <= 0) || regulator.isAlone;
@@ -806,11 +805,8 @@
       }
     };
 
-
     // Main Logic - extract naive representation ( DNF as set of conditions and subconditions )
     iterateOrTree(parse_tree);
-
-
 
     //extract negative regulators
     let canNegatives = objMap(positive_regulators, regulator => {
@@ -834,6 +830,7 @@
         return inters;
     });
 
+    //find negative regulators ( basically by groupping of subconditions )
     while(true){
         let occurences = {};
         //count occurences negative components inside positives
@@ -876,7 +873,7 @@
     }
 
 
-    //extract subConditions without any components
+    //remove subConditions without any components
     objEach(positive_regulators, regulator => {
         regulator.conditions.forEach(condition => {
             if(condition.conditions){
@@ -990,9 +987,14 @@
     let regexes = this._getRegexes(keys);
     let absentState = false;
 
+    let hasPositive = false;
+    for(let k in dnf){
+        dnf[k].forEach(v => {hasPositive = hasPositive || v[0].length > 0;});
+    }
+
     let tree;
-    if(this._evaluateState(s, regexes)){    //absent state is present
-//        console.log("MaybeAbsent");
+    if(hasPositive && this._evaluateState(s, regexes)){    //absent state is present
+
         let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join('+')+')')
 
         let newkeys = getKeys({},newdnf);
@@ -1405,15 +1407,19 @@
      // These regexes can be generated with ccBooleanAnalysis._getRegexes(assignments).
      const mapObj = {
        'OR':'||',
+       '+':'||',
+       '*':'&&',
        'AND':'&&',
-       '~':'!'
+       '~': '!'
      };
 
-     let parsable_expression = expression.replace(/([^a-z0-9$])(AND|OR|~)([\s^a-z0-9$])/gi,
-            (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||""));
+     const replFun = (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||"");
+     let parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
+                                        .replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 
      // insert the assignments into the parsable_expression
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
+
      /*jshint -W061 */
      return eval(parsable_expression);
    };
@@ -1451,16 +1457,24 @@
      return regexes;
    };
 
-   ccBooleanAnalysis.evaluateStateTransition = function(equations, assignments) {
+   ccBooleanAnalysis.evaluateStateTransition = function(equations, terms, assignments, transitions) {
      const regexes = this._getRegexes(assignments);
      const new_assignments = {};
 
      for (const equation of equations) {
        const sides = equation.split('=');
-       new_assignments[sides[0]] = this._evaluateState(sides[1], regexes);
+       new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
      }
 
-     return new_assignments;
+     let missingTerms = terms.filter((t)=>new_assignments[t]===undefined);
+     for(let i = 0; i < 1<<missingTerms.length; i++){
+        let na = {};
+        for(let k in new_assignments) na[k] = new_assignments[k];
+        missingTerms.forEach((term,j) => {
+            na[term] = (i>>j)&1;
+        });
+        transitions.push([assignments, na]);
+     }
    };
 
    ccBooleanAnalysis.getStateSpace = function(equation) {
@@ -1506,22 +1520,13 @@
      // Each digit of this binary expression gives the setting
      // of a term in the evaluation.
      for (let i = 0; i < (2 << equations.length); i++) {
-       const settings = i.toString(2);
+//       const settings = i.toString(2);
        const assignments = {};
        for (let j = 0; j < terms.length; j++) {
          const term = terms[j];
-         if (j < settings.length) {
-           if (settings[j] == 1) {
-             assignments[term] = true;
-           } else {
-             assignments[term] = false;
-           }
-         } else {
-           assignments[term] = false;
-         }
+         assignments[term] = (i >> j)&1;
        }
-       const new_assignments = this.evaluateStateTransition(equations, assignments);
-       transitions.push([assignments, new_assignments]);
+       this.evaluateStateTransition(equations, terms, assignments, transitions);
      }
 
      return transitions;
