@@ -1465,7 +1465,8 @@
        const sides = equation.split('=');
        new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
      }
-
+     transitions.push([assignments, new_assignments]);
+/*
      let missingTerms = terms.filter((t)=>new_assignments[t]===undefined);
      for(let i = 0; i < 1<<missingTerms.length; i++){
         let na = {};
@@ -1475,30 +1476,26 @@
         });
         transitions.push([assignments, na]);
      }
-   };
+*/   };
 
-   ccBooleanAnalysis.getStateSpace = function(equation) {
+   //Get truth table for equation
+   ccBooleanAnalysis.getTruthTable = function(equation) {
      let terms = {};
      equation.replace(/[$A-Z_][0-9A-Z_$]*/gi, (id)=>{
         terms[id] = true; return id;});
      terms = Object.keys(terms).sort();
 
      let assignments = {};
-     let ret = [terms.join(" ")];
+     let ret = [terms.concat(['value'])];
      for (let i = (2 << terms.length)-1; i >= 0; --i) {
-       let settings = i.toString(2);
-       while(settings.length < terms.length)
-          settings = "0"+settings;
-
-       terms.forEach((t,i)=>{
-           assignments[t] = settings[i] == '1';
+       let settings = new Array(terms.length+1);
+       terms.forEach((t,j)=>{
+           assignments[t] = settings[j] = (i>>j)&1 ? true : false;
        });
-
-       let val = this._evaluateState(equation, this._getRegexes(assignments));
-       ret.push(settings+' '+val);
+       settings[terms.length] = this._evaluateState(equation, this._getRegexes(assignments));
+       ret.push(settings);
      }
      return ret;
-
    }
 
    ccBooleanAnalysis.stateTransitionGraph = function(equations) {
@@ -1519,7 +1516,7 @@
      // to 2^(equations.length - 1) in binary.
      // Each digit of this binary expression gives the setting
      // of a term in the evaluation.
-     for (let i = 0; i < (2 << equations.length); i++) {
+     for (let i = 0; i < (2 << terms.length); i++) {
 //       const settings = i.toString(2);
        const assignments = {};
        for (let j = 0; j < terms.length; j++) {

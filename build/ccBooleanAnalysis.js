@@ -1795,26 +1795,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  }
 	
-	  var missingTerms = terms.filter(function (t) {
-	    return new_assignments[t] === undefined;
-	  });
-	
-	  var _loop3 = function _loop3(i) {
-	    var na = {};
-	    for (var k in new_assignments) {
-	      na[k] = new_assignments[k];
-	    }missingTerms.forEach(function (term, j) {
-	      na[term] = i >> j & 1;
-	    });
-	    transitions.push([assignments, na]);
-	  };
-	
-	  for (var i = 0; i < 1 << missingTerms.length; i++) {
-	    _loop3(i);
-	  }
+	  transitions.push([assignments, new_assignments]);
+	  /*
+	       let missingTerms = terms.filter((t)=>new_assignments[t]===undefined);
+	       for(let i = 0; i < 1<<missingTerms.length; i++){
+	          let na = {};
+	          for(let k in new_assignments) na[k] = new_assignments[k];
+	          missingTerms.forEach((term,j) => {
+	              na[term] = (i>>j)&1;
+	          });
+	          transitions.push([assignments, na]);
+	       }
+	  */
 	};
 	
-	ccBooleanAnalysis.getStateSpace = function (equation) {
+	//Get truth table for equation
+	ccBooleanAnalysis.getTruthTable = function (equation) {
 	  var _this = this;
 	
 	  var terms = {};
@@ -1824,22 +1820,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	  terms = Object.keys(terms).sort();
 	
 	  var assignments = {};
-	  var ret = [terms.join(" ")];
+	  var ret = [terms.concat(['value'])];
 	
-	  var _loop4 = function _loop4(i) {
-	    var settings = i.toString(2);
-	    while (settings.length < terms.length) {
-	      settings = "0" + settings;
-	    }terms.forEach(function (t, i) {
-	      assignments[t] = settings[i] == '1';
+	  var _loop3 = function _loop3(i) {
+	    var settings = new Array(terms.length + 1);
+	    terms.forEach(function (t, j) {
+	      assignments[t] = settings[j] = i >> j & 1 ? true : false;
 	    });
-	
-	    var val = _this._evaluateState(equation, _this._getRegexes(assignments));
-	    ret.push(settings + ' ' + val);
+	    settings[terms.length] = _this._evaluateState(equation, _this._getRegexes(assignments));
+	    ret.push(settings);
 	  };
 	
 	  for (var i = (2 << terms.length) - 1; i >= 0; --i) {
-	    _loop4(i);
+	    _loop3(i);
 	  }
 	  return ret;
 	};
@@ -1865,7 +1858,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // to 2^(equations.length - 1) in binary.
 	  // Each digit of this binary expression gives the setting
 	  // of a term in the evaluation.
-	  for (var i = 0; i < 2 << equations.length; i++) {
+	  for (var i = 0; i < 2 << terms.length; i++) {
 	    //       const settings = i.toString(2);
 	    var assignments = {};
 	    for (var j = 0; j < terms.length; j++) {
