@@ -1421,7 +1421,7 @@
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
 
      /*jshint -W061 */
-     return eval(parsable_expression);
+     return eval(parsable_expression)?1:0;
    };
 
    ccBooleanAnalysis._applyRegexes = (parsable_expression, regexes) => {
@@ -1465,8 +1465,8 @@
        const sides = equation.split('=');
        new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
      }
-     transitions.push([assignments, new_assignments]);
-/*
+//     transitions.push([assignments, new_assignments]);
+
      let missingTerms = terms.filter((t)=>new_assignments[t]===undefined);
      for(let i = 0; i < 1<<missingTerms.length; i++){
         let na = {};
@@ -1476,7 +1476,7 @@
         });
         transitions.push([assignments, na]);
      }
-*/   };
+   };
 
    //Get truth table for equation
    ccBooleanAnalysis.getTruthTable = function(equation) {
