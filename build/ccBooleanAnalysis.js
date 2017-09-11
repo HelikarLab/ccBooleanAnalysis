@@ -1703,7 +1703,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  parsable_expression = this._applyRegexes(parsable_expression, regexes);
 	
 	  /*jshint -W061 */
-	  return eval(parsable_expression);
+	  return eval(parsable_expression) ? 1 : 0;
 	};
 	
 	ccBooleanAnalysis._applyRegexes = function (parsable_expression, regexes) {
@@ -1780,6 +1780,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var sides = equation.split('=');
 	      new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
 	    }
+	    //     transitions.push([assignments, new_assignments]);
 	  } catch (err) {
 	    _didIteratorError10 = true;
 	    _iteratorError10 = err;
@@ -1795,18 +1796,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  }
 	
-	  transitions.push([assignments, new_assignments]);
-	  /*
-	       let missingTerms = terms.filter((t)=>new_assignments[t]===undefined);
-	       for(let i = 0; i < 1<<missingTerms.length; i++){
-	          let na = {};
-	          for(let k in new_assignments) na[k] = new_assignments[k];
-	          missingTerms.forEach((term,j) => {
-	              na[term] = (i>>j)&1;
-	          });
-	          transitions.push([assignments, na]);
-	       }
-	  */
+	  var missingTerms = terms.filter(function (t) {
+	    return new_assignments[t] === undefined;
+	  });
+	
+	  var _loop3 = function _loop3(i) {
+	    var na = {};
+	    for (var k in new_assignments) {
+	      na[k] = new_assignments[k];
+	    }missingTerms.forEach(function (term, j) {
+	      na[term] = i >> j & 1;
+	    });
+	    transitions.push([assignments, na]);
+	  };
+	
+	  for (var i = 0; i < 1 << missingTerms.length; i++) {
+	    _loop3(i);
+	  }
 	};
 	
 	//Get truth table for equation
@@ -1822,7 +1828,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var assignments = {};
 	  var ret = [terms.concat(['value'])];
 	
-	  var _loop3 = function _loop3(i) {
+	  var _loop4 = function _loop4(i) {
 	    var settings = new Array(terms.length + 1);
 	    terms.forEach(function (t, j) {
 	      assignments[t] = settings[j] = i >> j & 1 ? true : false;
@@ -1832,7 +1838,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 	
 	  for (var i = (2 << terms.length) - 1; i >= 0; --i) {
-	    _loop3(i);
+	    _loop4(i);
 	  }
 	  return ret;
 	};
