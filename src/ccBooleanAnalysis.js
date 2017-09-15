@@ -1457,10 +1457,11 @@
      return regexes;
    };
 
-   ccBooleanAnalysis.evaluateStateTransition = function(equations, terms, assignments, transitions) {
+   ccBooleanAnalysis.evaluateStateTransition = function(equations, terms, assignments, statics, transitions) {
      const regexes = this._getRegexes(assignments);
      const new_assignments = {};
-
+     for ( let k in statics ) { new_assignments[k] = statics[k]; };
+     
      for (const equation of equations) {
        const sides = equation.split('=');
        new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
@@ -1503,6 +1504,16 @@
      let terms = {};
      equations.forEach((e)=>e.replace(/[$A-Z_][0-9A-Z_$]*/gi, (id)=>{
         terms[id] = true; return id;}));
+     
+     let statics = {};
+     //simple approach to find static equations
+     equations.forEach((e,i)=>{
+        let eq = e.split('=')[1].replace(/^\s+/g, '').trim();
+        if(eq !== '0' && eq !== '1') return;
+        let k = e.split('=')[0].trim();
+        statics[k] = parseInt(eq)?1:0;
+        delete terms[k];
+     });
      terms = Object.keys(terms);
 
      // Iterate through each possible combination of assignments
@@ -1519,11 +1530,12 @@
      for (let i = 0; i < (2 << terms.length); i++) {
 //       const settings = i.toString(2);
        const assignments = {};
+       for ( let k in statics ) { assignments[k] = statics[k]; };
        for (let j = 0; j < terms.length; j++) {
          const term = terms[j];
          assignments[term] = (i >> j)&1;
        }
-       this.evaluateStateTransition(equations, terms, assignments, transitions);
+       this.evaluateStateTransition(equations, terms, assignments, statics, transitions);
      }
 
      return transitions;

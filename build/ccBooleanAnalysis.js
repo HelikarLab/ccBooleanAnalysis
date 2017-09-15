@@ -1765,9 +1765,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return regexes;
 	};
 	
-	ccBooleanAnalysis.evaluateStateTransition = function (equations, terms, assignments, transitions) {
+	ccBooleanAnalysis.evaluateStateTransition = function (equations, terms, assignments, statics, transitions) {
 	  var regexes = this._getRegexes(assignments);
 	  var new_assignments = {};
+	  for (var k in statics) {
+	    new_assignments[k] = statics[k];
+	  };
 	
 	  var _iteratorNormalCompletion10 = true;
 	  var _didIteratorError10 = false;
@@ -1802,8 +1805,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  var _loop3 = function _loop3(i) {
 	    var na = {};
-	    for (var k in new_assignments) {
-	      na[k] = new_assignments[k];
+	    for (var _k3 in new_assignments) {
+	      na[_k3] = new_assignments[_k3];
 	    }missingTerms.forEach(function (term, j) {
 	      na[term] = i >> j & 1;
 	    });
@@ -1851,6 +1854,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      terms[id] = true;return id;
 	    });
 	  });
+	
+	  var statics = {};
+	  //simple approach to find static equations
+	  equations.forEach(function (e, i) {
+	    var eq = e.split('=')[1].replace(/^\s+/g, '').trim();
+	    if (eq !== '0' && eq !== '1') return;
+	    var k = e.split('=')[0].trim();
+	    statics[k] = parseInt(eq) ? 1 : 0;
+	    delete terms[k];
+	  });
 	  terms = Object.keys(terms);
 	
 	  // Iterate through each possible combination of assignments
@@ -1867,11 +1880,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  for (var i = 0; i < 2 << terms.length; i++) {
 	    //       const settings = i.toString(2);
 	    var assignments = {};
+	    for (var k in statics) {
+	      assignments[k] = statics[k];
+	    };
 	    for (var j = 0; j < terms.length; j++) {
 	      var term = terms[j];
 	      assignments[term] = i >> j & 1;
 	    }
-	    this.evaluateStateTransition(equations, terms, assignments, transitions);
+	    this.evaluateStateTransition(equations, terms, assignments, statics, transitions);
 	  }
 	
 	  return transitions;
@@ -2109,8 +2125,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        depends_on[_term].push(parts[0]);
 	      }
 	
-	      for (var _k3 = 0; _k3 < individual_conjuction[1].length; _k3++) {
-	        var _term2 = individual_conjuction[1][_k3];
+	      for (var _k4 = 0; _k4 < individual_conjuction[1].length; _k4++) {
+	        var _term2 = individual_conjuction[1][_k4];
 	        if (!(_term2 in depends_on)) {
 	          depends_on[_term2] = [];
 	        }
