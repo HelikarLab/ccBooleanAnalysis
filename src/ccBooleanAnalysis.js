@@ -548,7 +548,7 @@
 
        for (const node2 of nodes) {
          // is node1 connected to node2? (1 -> 2)
-         const connected = (node2 in distances[node1]);
+         const connected = (node2 in distances[node1] && connectivity[node1][node2] === 1);
          connectivity[node1][node2] = connected;
        }
      }
