@@ -1,7 +1,7 @@
 var ccbooleananalysis = require("../src/ccBooleanAnalysis.js");
 
 
-let lacOperon = ["lac_mRNA = lac_operon",
+var lacOperon = ["lac_mRNA = lac_operon",
                   "lac_repressor = ~(allolactose)",
                   "lac_enzymes = lac_mRNA",
                   "CAP = cAMP",
@@ -11,7 +11,7 @@ let lacOperon = ["lac_mRNA = lac_operon",
                     "lac_operon = CAP * ~((CAP_mutation + lac_repressor))"];
 
 
-let guardCellAbcisic = [
+var guardCellAbcisic = [
   "NO = (NOS * NIA12)", "NOS = Ca2_c", "NIA12 = RCN1", "PLC = (ABA * Ca2_c)",
   "Ca2_c = (CIS * ~(Ca2_ATPase) + CaIM * ~(Ca2_ATPase))","CaIM = ((ABH1 * ~ERA1) * ~(Depolar) + (ERA1 * ~ABH1) * ~(Depolar) + ROS * ~(Depolar)) + ~(Depolar + ERA1 + ABH1 + ROS)",
   "Depolar = (AnionEM + (Ca2_c * (~KOUT + ~HTPase)) + (HTPase * (~Ca2_c + ~KOUT)) + KEV + (KOUT * (~Ca2_c + ~HTPase))) + ~(AnionEM + KOUT + HTPase + Ca2_c + KEV)",
@@ -31,7 +31,7 @@ let guardCellAbcisic = [
   "PLD = GPA1", "SphK = ABA", "ROP10 = ERA1"
 ];
 
-let mammalianCellCycle = [
+var mammalianCellCycle = [
   "UbcH10 = (Cdc20 * ~(Cdh1) + CycA * ~(Cdh1) + CycB * ~(Cdh1) + (UbcH10 * (~Cdh1 + (Cdh1 * (CycA + Cdc20 + CycB))))) + ~(Cdh1 + Cdc20 + CycA + CycB + UbcH10)",
   "p27 = p27 * ~((CycD + (CycA * CycE) + CycB)) + ~(CycE + CycA + CycB + CycD + p27)",
   "CycE = E2F * ~(Rb)",
@@ -44,7 +44,7 @@ let mammalianCellCycle = [
   "E2F = p27 * ~((CycB + Rb)) + ~(CycB + Rb + CycA + p27)"
 ];
 
-let cd4tcellsignalling = [
+var cd4tcellsignalling = [
     "ITAMS = Lck",
     "adenyl_cyclase = GalphaS_R",
     "IL9R = (IL9_e + JAK3)",
@@ -207,3 +207,37 @@ let cd4tcellsignalling = [
 // console.log(ccbooleananalysis.feedbackLoops(guardCellAbcisic));
 // console.log(ccbooleananalysis.connectivityInDegree(mammalianCellCycle));
 // console.log(ccbooleananalysis.connectivityOutDegree(mammalianCellCycle));
+
+
+// const eq = "IRAK_TRAF6 + RIPK1_TRAF6";
+// const eq = "(~ Calcium_cyt_b1 * ~ IP3R1 * ~ SERCA * ORAI1) + (~ Calcium_cyt_b1 * ~ IP3R1 * SERCA * ORAI1 * ~ PMCA) + (~ Calcium_cyt_b1 * IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (~ Calcium_cyt_b1 * IP3R1 * ~ SERCA * ORAI1) + (~ Calcium_cyt_b1 * IP3R1 * SERCA * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * SERCA * ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * SERCA * ~ PMCA) + (Calcium_cyt_b1 * Calcium_cyt_b2)";
+// const eq = "(WAVE_cplx * ~ Calcium_cyt_b1 * STIM1) + (WAVE_cplx * Calcium_cyt_b1 * ~ Calcium_cyt_b2 * STIM1) + (WAVE_cplx * Calcium_cyt_b1 * Calcium_cyt_b2 * STIM1 * Mitochondria)";
+
+/*const eqs = [
+  "IP3",
+  "ZAP70 * Calcium_cyt_b1",
+  "~ Calcium_ER",
+  "(WAVE_cplx * ~ Calcium_cyt_b1 * STIM1) + (WAVE_cplx * Calcium_cyt_b1 * ~ Calcium_cyt_b2 * STIM1) + (WAVE_cplx * Calcium_cyt_b1 * Calcium_cyt_b2 * STIM1 * Mitochondria)",
+  "(~ Calcium_cyt_b1 * ~ IP3R1 * ~ SERCA * ORAI1) + (~ Calcium_cyt_b1 * ~ IP3R1 * SERCA * ORAI1 * ~ PMCA) + (~ Calcium_cyt_b1 * IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (~ Calcium_cyt_b1 * IP3R1 * ~ SERCA * ORAI1) + (~ Calcium_cyt_b1 * IP3R1 * SERCA * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ IP3R1 * SERCA * ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * IP3R1 * SERCA * ~ PMCA) + (Calcium_cyt_b1 * Calcium_cyt_b2)",
+  "~ Calcium_ER * Calcium_cyt_b1",
+  "(Calcium_cyt_b1 * ~ Calcium_cyt_b2 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * ~ Calcium_cyt_b2 * SERCA * ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * Calcium_cyt_b2 * ~ SERCA * ~ ORAI1 * ~ PMCA) + (Calcium_cyt_b1 * Calcium_cyt_b2 * ~ SERCA * ORAI1) + (Calcium_cyt_b1 * Calcium_cyt_b2 * SERCA * ~ PMCA)",
+  "Calcium_cyt_b1 * ~ Mitochondria",
+  "(~ Calcium_ER * ~ IP3R1 * SERCA) + (Calcium_ER * ~ IP3R1)"
+];
+*/
+
+/*
+var eqs = [
+    "(sa1102 * sa1103) + sa1102"
+];
+*/
+
+var eqs = [
+  "a * b + a"
+];
+
+
+eqs.forEach((eq) => {
+  console.log("parsing "+eq);
+  console.log(JSON.stringify(ccbooleananalysis.getBiologicalConstructs(eq), null, 2));
+})

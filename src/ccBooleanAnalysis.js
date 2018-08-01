@@ -795,10 +795,10 @@
         }
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
         // Add a positive regulator with no conditions
-        addPosRegulator(parse_tree.name);
+        addPosRegulator(parse_tree.name).isAlone = true;
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
         // Add a negative regulator with no conditions
-        addNegRegulator(parse_tree.argument.name);
+        addNegRegulator(parse_tree.argument.name).isAlone = true;
       } else { // kOR
         iterateOrTree(parse_tree.left);
         iterateOrTree(parse_tree.right);
@@ -905,7 +905,24 @@
         regulator.conditions = regulator.conditions.filter(condition => condition.components.length);
     });
 
-    return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators));
+    //some regulators have isAlone, and when they have it and they have
+    let singles = [];
+    const extractSingles = regulator => {
+      if(regulator.isAlone){
+        delete regulator.isAlone;
+        if(regulator.conditions && regulator.conditions.length > 0){
+          singles.push({
+            component: regulator.component,
+            type: regulator.type,
+          });
+        }
+      }
+    };
+    objEach(positive_regulators, extractSingles);
+    objEach(negative_regulators, extractSingles);
+
+
+    return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
   };
 
   const formulaToStr = (f) => {

@@ -52,7 +52,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
@@ -757,7 +757,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          var node2 = _step8.value;
 	
 	          // is node1 connected to node2? (1 -> 2)
-	          var connected = node2 in distances[node1];
+	          var connected = node2 in distances[node1] && connectivity[node1][node2] === 1;
 	          connectivity[node1][node2] = connected;
 	        }
 	      } catch (err) {
@@ -934,7 +934,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *    - A and (B or C) --> (A and B) or (A and C)
 	 *
 	 * Recursively apply these techniques to reach DNF.
-	  * Each regulator is structured as follows:
+	   * Each regulator is structured as follows:
 	 *     "component" - name of the given component (name of the variable in parsed expression)
 	 *     "type" - false (negative regulator), true (positive regulator) (not mandatory - false is default)
 	 *     "conditionRelation" - false (or = independent), true (and = cooperative) (not mandatory - false is default)
@@ -955,7 +955,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *     "state" - false (inactive), true (active), not mandatory - false is default
 	 *     "type" - false (unless), true (if when), not mandatory - false is default
 	 *     "components" - array of component names (variables in parsed expression), this should contain at least one component
-	  
+	   
 	 */
 	var getRegulators = function getRegulators(parse_tree) {
 	
@@ -1034,10 +1034,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
 	      // Add a positive regulator with no conditions
-	      addPosRegulator(parse_tree.name);
+	      addPosRegulator(parse_tree.name).isAlone = true;
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
 	      // Add a negative regulator with no conditions
-	      addNegRegulator(parse_tree.argument.name);
+	      addNegRegulator(parse_tree.argument.name).isAlone = true;
 	    } else {
 	      // kOR
 	      iterateOrTree(parse_tree.left);
@@ -1155,7 +1155,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	    });
 	  });
 	
-	  return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators));
+	  //some regulators have isAlone, and when they have it and they have
+	  var singles = [];
+	  var extractSingles = function extractSingles(regulator) {
+	    if (regulator.isAlone) {
+	      delete regulator.isAlone;
+	      if (regulator.conditions && regulator.conditions.length > 0) {
+	        singles.push({
+	          component: regulator.component,
+	          type: regulator.type
+	        });
+	      }
+	    }
+	  };
+	  objEach(positive_regulators, extractSingles);
+	  objEach(negative_regulators, extractSingles);
+	
+	  return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
 	};
 	
 	var formulaToStr = function formulaToStr(f) {
@@ -2280,11 +2296,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = ccBooleanAnalysis;
 	// });
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	//     JavaScript Expression Parser (JSEP) 0.3.0
+	//     JavaScript Expression Parser (JSEP) 0.3.3
 	//     JSEP may be freely distributed under the MIT License
 	//     http://jsep.from.so/
 	
@@ -2293,7 +2309,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		'use strict';
 		// Node Types
 		// ----------
-		
+	
 		// This is the full set of types that any JSEP node can be.
 		// Store them here to save space when minified
 		var COMPOUND = 'Compound',
@@ -2329,7 +2345,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 		// Operations
 		// ----------
-		
+	
 		// Set `t` to `true` to save space (when minified, not gzipped)
 			t = true,
 		// Use a quickly-accessible map to store all of the unary operators
@@ -2341,7 +2357,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			binary_ops = {
 				'||': 1, '&&': 2, '|': 3,  '^': 4,  '&': 5,
 				'==': 6, '!=': 6, '===': 6, '!==': 6,
-				'<': 7,  '>': 7,  '<=': 7,  '>=': 7, 
+				'<': 7,  '>': 7,  '<=': 7,  '>=': 7,
 				'<<':8,  '>>': 8, '>>>': 8,
 				'+': 9, '-': 9,
 				'*': 10, '/': 10, '%': 10
@@ -2390,13 +2406,15 @@ return /******/ (function(modules) { // webpackBootstrap
 			isIdentifierStart = function(ch) {
 				return (ch === 36) || (ch === 95) || // `$` and `_`
 						(ch >= 65 && ch <= 90) || // A...Z
-						(ch >= 97 && ch <= 122); // a...z
+						(ch >= 97 && ch <= 122) || // a...z
+	                    (ch >= 128 && !binary_ops[String.fromCharCode(ch)]); // any non-ASCII that is not an operator
 			},
 			isIdentifierPart = function(ch) {
 				return (ch === 36) || (ch === 95) || // `$` and `_`
 						(ch >= 65 && ch <= 90) || // A...Z
 						(ch >= 97 && ch <= 122) || // a...z
-						(ch >= 48 && ch <= 57); // 0...9
+						(ch >= 48 && ch <= 57) || // 0...9
+	                    (ch >= 128 && !binary_ops[String.fromCharCode(ch)]); // any non-ASCII that is not an operator
 			},
 	
 			// Parsing
@@ -2416,11 +2434,11 @@ return /******/ (function(modules) { // webpackBootstrap
 					gobbleSpaces = function() {
 						var ch = exprICode(index);
 						// space or tab
-						while(ch === 32 || ch === 9) {
+						while(ch === 32 || ch === 9 || ch === 10 || ch === 13) {
 							ch = exprICode(++index);
 						}
 					},
-					
+	
 					// The main parsing function. Much of this code is dedicated to ternary expressions
 					gobbleExpression = function() {
 						var test = gobbleBinaryExpression(),
@@ -2524,7 +2542,7 @@ return /******/ (function(modules) { // webpackBootstrap
 						i = stack.length - 1;
 						node = stack[i];
 						while(i > 1) {
-							node = createBinaryExpression(stack[i - 1].value, stack[i - 2], node); 
+							node = createBinaryExpression(stack[i - 1].value, stack[i - 2], node);
 							i -= 2;
 						}
 						return node;
@@ -2534,7 +2552,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					// e.g. `foo.bar(baz)`, `1`, `"abc"`, `(a % 2)` (because it's in parenthesis)
 					gobbleToken = function() {
 						var ch, to_check, tc_len;
-						
+	
 						gobbleSpaces();
 						ch = exprICode(index);
 	
@@ -2544,9 +2562,6 @@ return /******/ (function(modules) { // webpackBootstrap
 						} else if(ch === SQUOTE_CODE || ch === DQUOTE_CODE) {
 							// Single or double quotes
 							return gobbleStringLiteral();
-						} else if(isIdentifierStart(ch) || ch === OPAREN_CODE) { // open parenthesis
-							// `foo`, `bar.baz`
-							return gobbleVariable();
 						} else if (ch === OBRACK_CODE) {
 							return gobbleArray();
 						} else {
@@ -2564,9 +2579,14 @@ return /******/ (function(modules) { // webpackBootstrap
 								}
 								to_check = to_check.substr(0, --tc_len);
 							}
-							
-							return false;
+	
+							if (isIdentifierStart(ch) || ch === OPAREN_CODE) { // open parenthesis
+								// `foo`, `bar.baz`
+								return gobbleVariable();
+							}
 						}
+						
+						return false;
 					},
 					// Parse simple numeric literals: `12`, `3.4`, `.5`. Do this by using a string to
 					// keep track of everything in the numeric literal and then calling `parseFloat` on that string
@@ -2583,7 +2603,7 @@ return /******/ (function(modules) { // webpackBootstrap
 								number += exprI(index++);
 							}
 						}
-						
+	
 						ch = exprI(index);
 						if(ch === 'e' || ch === 'E') { // exponent marker
 							number += exprI(index++);
@@ -2598,7 +2618,7 @@ return /******/ (function(modules) { // webpackBootstrap
 								throwError('Expected exponent (' + number + exprI(index) + ')', index);
 							}
 						}
-						
+	
 	
 						chCode = exprICode(index);
 						// Check to make sure this isn't a variable name that start with a number (123abc)
@@ -2636,6 +2656,7 @@ return /******/ (function(modules) { // webpackBootstrap
 									case 'b': str += '\b'; break;
 									case 'f': str += '\f'; break;
 									case 'v': str += '\x0B'; break;
+									default : str += ch;
 								}
 							} else {
 								str += ch;
@@ -2652,7 +2673,7 @@ return /******/ (function(modules) { // webpackBootstrap
 							raw: quote + str + quote
 						};
 					},
-					
+	
 					// Gobbles only identifiers
 					// e.g.: `foo`, `_value`, `$x1`
 					// Also, this function checks if that identifier is a literal:
@@ -2698,11 +2719,12 @@ return /******/ (function(modules) { // webpackBootstrap
 					// until the terminator character `)` or `]` is encountered.
 					// e.g. `foo(bar, baz)`, `my_func()`, or `[bar, baz]`
 					gobbleArguments = function(termination) {
-						var ch_i, args = [], node;
+						var ch_i, args = [], node, closed = false;
 						while(index < length) {
 							gobbleSpaces();
 							ch_i = exprICode(index);
 							if(ch_i === termination) { // done parsing
+								closed = true;
 								index++;
 								break;
 							} else if (ch_i === COMMA_CODE) { // between expressions
@@ -2715,6 +2737,9 @@ return /******/ (function(modules) { // webpackBootstrap
 								args.push(node);
 							}
 						}
+						if (!closed) {
+							throwError('Expected ' + String.fromCharCode(termination), index);
+						}
 						return args;
 					},
 	
@@ -2725,7 +2750,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					gobbleVariable = function() {
 						var ch_i, node;
 						ch_i = exprICode(index);
-							
+	
 						if(ch_i === OPAREN_CODE) {
 							node = gobbleGroup();
 						} else {
@@ -2799,7 +2824,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					},
 	
 					nodes = [], ch_i, node;
-					
+	
 				while(index < length) {
 					ch_i = exprICode(index);
 	
@@ -2831,7 +2856,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			};
 	
 		// To be filled in by the template
-		jsep.version = '0.3.0';
+		jsep.version = '0.3.3';
 		jsep.toString = function() { return 'JavaScript Expression Parser (JSEP) v' + jsep.version; };
 	
 		/**
@@ -2840,6 +2865,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @return jsep
 		 */
 		jsep.addUnaryOp = function(op_name) {
+			max_unop_len = Math.max(op_name.length, max_unop_len);
 			unary_ops[op_name] = t; return this;
 		};
 	
@@ -2852,6 +2878,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		jsep.addBinaryOp = function(op_name, precedence) {
 			max_binop_len = Math.max(op_name.length, max_binop_len);
 			binary_ops[op_name] = precedence;
+			return this;
+		};
+	
+		/**
+		 * @method jsep.addLiteral
+		 * @param {string} literal_name The name of the literal to add
+		 * @param {*} literal_value The value of the literal
+		 * @return jsep
+		 */
+		jsep.addLiteral = function(literal_name, literal_value) {
+			literals[literal_name] = literal_value;
 			return this;
 		};
 	
@@ -2869,6 +2906,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		};
 	
 		/**
+		 * @method jsep.removeAllUnaryOps
+		 * @return jsep
+		 */
+		jsep.removeAllUnaryOps = function() {
+			unary_ops = {};
+			max_unop_len = 0;
+	
+			return this;
+		};
+	
+		/**
 		 * @method jsep.removeBinaryOp
 		 * @param {string} op_name The name of the binary op to remove
 		 * @return jsep
@@ -2878,6 +2926,37 @@ return /******/ (function(modules) { // webpackBootstrap
 			if(op_name.length === max_binop_len) {
 				max_binop_len = getMaxKeyLen(binary_ops);
 			}
+			return this;
+		};
+	
+		/**
+		 * @method jsep.removeAllBinaryOps
+		 * @return jsep
+		 */
+		jsep.removeAllBinaryOps = function() {
+			binary_ops = {};
+			max_binop_len = 0;
+	
+			return this;
+		};
+	
+		/**
+		 * @method jsep.removeLiteral
+		 * @param {string} literal_name The name of the literal to remove
+		 * @return jsep
+		 */
+		jsep.removeLiteral = function(literal_name) {
+			delete literals[literal_name];
+			return this;
+		};
+	
+		/**
+		 * @method jsep.removeAllLiterals
+		 * @return jsep
+		 */
+		jsep.removeAllLiterals = function() {
+			literals = {};
+	
 			return this;
 		};
 	
@@ -2904,9 +2983,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}(this));
 
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	"use strict";
 	
@@ -2928,62 +3007,62 @@ return /******/ (function(modules) { // webpackBootstrap
 	/*jshint esversion: 6 */
 	function Queue() {
 	
-	  // initialise the queue and offset
-	  var queue = [];
-	  var offset = 0;
+	   // initialise the queue and offset
+	   var queue = [];
+	   var offset = 0;
 	
-	  // Returns the length of the queue.
-	  this.getLength = function () {
-	    return queue.length - offset;
-	  };
+	   // Returns the length of the queue.
+	   this.getLength = function () {
+	      return queue.length - offset;
+	   };
 	
-	  // Returns true if the queue is empty, and false otherwise.
-	  this.isEmpty = function () {
-	    return queue.length === 0;
-	  };
+	   // Returns true if the queue is empty, and false otherwise.
+	   this.isEmpty = function () {
+	      return queue.length === 0;
+	   };
 	
-	  /* Enqueues the specified item. The parameter is:
-	   *
-	   * item - the item to enqueue
-	   */
-	  this.enqueue = function (item) {
-	    queue.push(item);
-	  };
+	   /* Enqueues the specified item. The parameter is:
+	    *
+	    * item - the item to enqueue
+	    */
+	   this.enqueue = function (item) {
+	      queue.push(item);
+	   };
 	
-	  /* Dequeues an item and returns it. If the queue is empty, the value
-	   * 'undefined' is returned.
-	   */
-	  this.dequeue = function () {
+	   /* Dequeues an item and returns it. If the queue is empty, the value
+	    * 'undefined' is returned.
+	    */
+	   this.dequeue = function () {
 	
-	    // if the queue is empty, return immediately
-	    if (queue.length === 0) return undefined;
+	      // if the queue is empty, return immediately
+	      if (queue.length === 0) return undefined;
 	
-	    // store the item at the front of the queue
-	    var item = queue[offset];
+	      // store the item at the front of the queue
+	      var item = queue[offset];
 	
-	    // increment the offset and remove the free space if necessary
-	    if (++offset * 2 >= queue.length) {
-	      queue = queue.slice(offset);
-	      offset = 0;
-	    }
+	      // increment the offset and remove the free space if necessary
+	      if (++offset * 2 >= queue.length) {
+	         queue = queue.slice(offset);
+	         offset = 0;
+	      }
 	
-	    // return the dequeued item
-	    return item;
-	  };
+	      // return the dequeued item
+	      return item;
+	   };
 	
-	  /* Returns the item at the front of the queue (without dequeuing it). If the
-	   * queue is empty then undefined is returned.
-	   */
-	  this.peek = function () {
-	    return queue.length > 0 ? queue[offset] : undefined;
-	  };
+	   /* Returns the item at the front of the queue (without dequeuing it). If the
+	    * queue is empty then undefined is returned.
+	    */
+	   this.peek = function () {
+	      return queue.length > 0 ? queue[offset] : undefined;
+	   };
 	}
 	
 	module.exports = Queue;
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var MiniSat = __webpack_require__(4);
 	var _ = __webpack_require__(6);
@@ -4837,9 +4916,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = Logic;
 
 
-/***/ },
+/***/ }),
 /* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var C_MINISAT = __webpack_require__(5);
 	var _ = __webpack_require__(6);
@@ -4968,9 +5047,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = MiniSat;
 
 
-/***/ },
+/***/ }),
 /* 5 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(__dirname) {var C_MINISAT;
 	// This file is generated by the meteor/minisat repo.
@@ -5013,9 +5092,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	/* WEBPACK VAR INJECTION */}.call(exports, "/"))
 
-/***/ },
+/***/ }),
 /* 6 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;//     Underscore.js 1.8.3
 	//     http://underscorejs.org
@@ -6567,7 +6646,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}.call(this));
 
 
-/***/ }
+/***/ })
 /******/ ])
 });
 ;
