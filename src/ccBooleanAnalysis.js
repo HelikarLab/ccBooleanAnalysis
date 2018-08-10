@@ -63,6 +63,25 @@
     return jsep(s);
   };
 
+  const getIdentifiersFromTree = (
+    {type, name, argument, left, right}, 
+    identifiers = {}
+  ) => {
+    switch(type){
+      case ccBooleanAnalysis._constants.kIdentifier:
+        identifiers[name] = name;
+        break;
+      case ccBooleanAnalysis._constants.kUnaryExpression:
+        getIdentifiersFromTree(argument, identifiers);
+        break;
+      case ccBooleanAnalysis._constants.kBinaryExpression:
+        getIdentifiersFromTree(left, identifiers);
+        getIdentifiersFromTree(right, identifiers);
+        break;
+    }
+    return identifiers;
+  }
+
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////        Boolean Equivalence
@@ -720,7 +739,6 @@
    
    */
    let getRegulators = parse_tree => {
-
     const objEach = (o, f) => {
         for(var k in o) f(o[k],k);
     }
@@ -761,6 +779,32 @@
       }
     };
 
+    const addLiteral = (positives, negatives) => {
+      if(positives.length > 0){
+          let regulator = addPosRegulator(positives[0]);
+          regulator.isAlone = (positives.length <= 1 && negatives.length <= 0) || regulator.isAlone;
+
+          let cond = {
+              state: true, // active
+              type: true, // if/whencomponents.filter((_,idx)=>idx)]
+              componentRelation: true, //cooperative
+              components: positives.slice(1),
+          };
+          if(negatives.length){
+              cond.subConditionRelation = false;
+              cond.conditions = [{
+                  componentRelation: true, //cooperative
+                  state: false,    //inactive
+                  type: true, // if/whencomponents.filter((_,idx)=>idx)]
+                  components: negatives
+              }];
+          }
+          regulator.conditions.push(cond);
+      }else if(negatives.length > 0){
+          negatives.forEach(addNegRegulator);
+      }
+    }
+
     const iterateOrTree = (parse_tree) => {
       if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
         let and_positive_holder = {data: []};
@@ -770,35 +814,13 @@
         let positives = and_positive_holder.data;
         let negatives = and_negative_holder.data;
 
-        if(positives.length > 0){
-            let regulator = addPosRegulator(positives[0]);
-            regulator.isAlone = (positives.length <= 1 && negatives.length <= 0) || regulator.isAlone;
-
-            let cond = {
-                state: true, // active
-                type: true, // if/whencomponents.filter((_,idx)=>idx)]
-                componentRelation: true, //cooperative
-                components: positives.slice(1),
-            };
-            if(negatives.length){
-                cond.subConditionRelation = false;
-                cond.conditions = [{
-                    componentRelation: true, //cooperative
-                    state: false,    //inactive
-                    type: true, // if/whencomponents.filter((_,idx)=>idx)]
-                    components: negatives
-                }];
-            }
-            regulator.conditions.push(cond);
-        }else if(negatives.length > 0){
-            negatives.forEach(addNegRegulator);
-        }
+        addLiteral(positives, negatives);
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
         // Add a positive regulator with no conditions
-        addPosRegulator(parse_tree.name).isAlone = true;
+        addLiteral([parse_tree.name], []);
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
         // Add a negative regulator with no conditions
-        addNegRegulator(parse_tree.argument.name).isAlone = true;
+        addLiteral([], [parse_tree.argument.name]);
       } else { // kOR
         iterateOrTree(parse_tree.left);
         iterateOrTree(parse_tree.right);
@@ -918,8 +940,9 @@
         }
       }
     };
-    objEach(positive_regulators, extractSingles);
-    objEach(negative_regulators, extractSingles);
+
+//    objEach(positive_regulators, extractSingles);
+//    objEach(negative_regulators, extractSingles);
 
 
     return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
@@ -999,8 +1022,9 @@
     };
 
     let dnf = this.getDNFObjectEncoding(s);
+    let olddnf = dnf;
 
-    let keys = getKeys({},dnf);
+    let keys = getIdentifiersFromTree(this.getParseTree(s));
     let regexes = this._getRegexes(keys);
     let absentState = false;
 
@@ -1010,56 +1034,46 @@
     }
 
     let tree;
-    if(hasPositive && this._evaluateState(s, regexes)){    //absent state is present
-
-        let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join('+')+')')
-
-        let newkeys = getKeys({},newdnf);
-        let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
-        if(missing.length > 0){
-            //extracting absent state does not remove any component from equation >> have to fill it with the missing values
-            let newdnfarr = ccBooleanAnalysis._getValues(newdnf);
-            let elsize = e=>e[0].length+e[1].length;
-            let len = (e) => e.map(elsize);
-            newdnfarr.sort((v1,v2) => Math.max.apply(null,len(v2)) - Math.max.apply(null,len(v1)));
-            if(newdnfarr.length){
-                tree = dnfToJsep(newdnf);
-
-                newdnfarr[0].sort((v1,v2) => elsize(v2)-elsize(v1));
-                let orig = newdnfarr[0].shift();
-
-                if(newdnfarr.length <= 0){
-                    let k = orig[0].concat(orig[1]).sort().join("");
-                    delete newdnf[k];
-                }
-
-                let k = orig[0].concat(orig[1]).concat(missing).sort().join("");
-                if(!newdnf[k]){ newdnf[k] = []; }
-
-                //loop through state space of all missing elements
-                for (let i = 0; i < (1 << missing.length); i++) {
-                    let newd = [orig[0].map(e=>e),orig[1].map(e=>e)];
-                    for(let j = 0; j < missing.length; j++){
-                        newd[(i >> j) & 1].push(missing[j]);
-                    }
-                    newdnf[k].push(newd);
-                }
-
-                tree = dnfToJsep(newdnf);
-                absentState = true;
-                dnf = newdnf;
-            }else{
-                tree = this.getParseTree(s);
-            }
-        }else{
-            tree = dnfToJsep(newdnf);
-            absentState = true;
-            dnf = newdnf;
-        }
-    }else{
-        tree = this.getParseTree(s);
+    //check for absent state
+    if(this._evaluateState(s, regexes.map(e=>[e[0], false]))){
+      let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join('+')+')')
+      absentState = true;
+      dnf = newdnf;
     }
 
+
+    let newkeys = getKeys({},dnf);
+    let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
+    if(missing.length > 0){
+        //extracting absent state does not remove any component from equation >> have to fill it with the missing values
+        let newdnfarr = ccBooleanAnalysis._getValues(dnf);
+        let elsize = e=>e[0].length+e[1].length;
+        let len = (e) => e.map(elsize);
+        newdnfarr.sort((v1,v2) => Math.max.apply(null,len(v2)) - Math.max.apply(null,len(v1)));
+        if(newdnfarr.length){
+            newdnfarr[0].sort((v1,v2) => elsize(v2)-elsize(v1));
+            let orig = newdnfarr[0].shift();
+
+            if(newdnfarr.length <= 0){
+                let k = orig[0].concat(orig[1]).sort().join("");
+                delete dnf[k];
+            }
+
+            let k = orig[0].concat(orig[1]).concat(missing).sort().join("");
+            if(!dnf[k]){ dnf[k] = []; }
+
+            //loop through state space of all missing elements
+            for (let i = 0; i < (1 << missing.length); i++) {
+                let newd = [orig[0].map(e=>e),orig[1].map(e=>e)];
+                for(let j = 0; j < missing.length; j++){
+                    newd[(i >> j) & 1].push(missing[j]);
+                }
+                dnf[k].push(newd);
+            }
+        }
+    }
+
+    tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
