@@ -82,6 +82,23 @@
     return identifiers;
   }
 
+  const parseTreeToString = ({type, name, argument, operator, left, right}) => {
+    switch(type){
+      case ccBooleanAnalysis._constants.kIdentifier:
+        return name;
+      case ccBooleanAnalysis._constants.kUnaryExpression:
+        return operator+"("+parseTreeToString(argument)+")";
+      case ccBooleanAnalysis._constants.kBinaryExpression:
+        return "(" + 
+                parseTreeToString(left) + " " +
+                operator + " " +
+                parseTreeToString(right) +
+                ")";
+      default:
+        throw new Error("Unreachable");
+    }
+  }
+
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////        Boolean Equivalence
@@ -131,16 +148,31 @@
          iterateOrTree(conjuctions, parse_tree.right);
        }
      };
+     
 
      // Convert parse tree format to DNF
      const parse_tree = this.getParseTree(s);
+/*     console.log("PARSE TREE");
+     const formula1 = formulaToStr(parse_tree);
+     console.log(formulaToStr(parse_tree));
+*/
      this._convertToNegationForm(parse_tree);
-     this._pushDownAnds(parse_tree);
 
+     this._pushDownAnds(parse_tree);
+/*
+     console.log("CONVERT TO NEGATION 2");
+     const formula2 = formulaToStr(parse_tree);
+     console.log(formulaToStr(parse_tree));
+     console.log(formulaToReadable(parse_tree).join('\n'));
+     console.log("EQUALS "+this.compareBooleansSAT(formula1, formula2));
+*/
      // Main Logic
      let conjuctions = {data: []};
      iterateOrTree(conjuctions, parse_tree);
-
+/*
+     console.log("CONJUNCTIONS");
+     console.log(JSON.stringify(conjuctions, null, 2));
+*/
      for (var i = 0; i < conjuctions.data.length; i++) {
        let conjuction_a = conjuctions.data[i];
 
@@ -801,7 +833,8 @@
           }
           regulator.conditions.push(cond);
       }else if(negatives.length > 0){
-          negatives.forEach(addNegRegulator);
+          let reg = negatives.forEach(addNegRegulator);
+            reg.isAlone = negatives.length <= 1;
       }
     }
 
@@ -941,9 +974,8 @@
       }
     };
 
-//    objEach(positive_regulators, extractSingles);
-//    objEach(negative_regulators, extractSingles);
-
+    objEach(positive_regulators, extractSingles);
+    objEach(negative_regulators, extractSingles);
 
     return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
   };
@@ -961,6 +993,27 @@
             throw new Error("Unexpected node (type >>"+f.type+"<<) in parse tree");
      }
   }
+
+  const formulaToReadable = (f) => {
+    let addPadding = (e) => e.map(e=>' '+e);
+    let cons = ccBooleanAnalysis._constants;
+    switch(f.type){
+        case cons.kBinaryExpression:
+           return addPadding(formulaToReadable(f.left)).concat([
+              f.operator,
+              ]).concat(addPadding(formulaToReadable(f.right)));
+        case cons.kUnaryExpression:
+           return [
+             f.operator].concat(
+             addPadding(formulaToReadable(f.argument))
+           );
+        case cons.kIdentifier:
+           return [f.name];
+        default:
+           throw new Error("Unexpected node (type >>"+f.type+"<<) in parse tree");
+    }
+ }
+
 
    // Recursively finds all terms in a parse_tree
    // and store them in a terms data structure,
@@ -1024,6 +1077,10 @@
     let dnf = this.getDNFObjectEncoding(s);
     let olddnf = dnf;
 
+    console.log("DNF")
+    console.log(JSON.stringify(dnf, null, 1 ));
+    console.log(JSON.stringify(formulaToStr(dnfToJsep(dnf)), null, 1 ));
+
     let keys = getIdentifiersFromTree(this.getParseTree(s));
     let regexes = this._getRegexes(keys);
     let absentState = false;
@@ -1076,6 +1133,11 @@
     tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
+
+    console.log(JSON.stringify({
+      regulators: getRegulators(tree),
+      absentState
+    },null,2));
 
     return {
        regulators: getRegulators(tree),
@@ -1375,27 +1437,37 @@
 
    // Distribute ANDs across ORs
    ccBooleanAnalysis._pushDownAnds = function(parse_tree) {
-     if (parse_tree.operator == this._constants.kAND) {
-       if (parse_tree.right.operator == this._constants.kOR) {
-         const old_left = parse_tree.left;
-         parse_tree.left = this._constructAND(old_left, parse_tree.right.left);
-         parse_tree.right = this._constructAND(old_left, parse_tree.right.right);
-         parse_tree.operator = this._constants.kOR;
-       }
-       else if (parse_tree.left.operator == this._constants.kOR) {
-         const old_right = parse_tree.right;
-         parse_tree.right = this._constructAND(parse_tree.left.right, old_right);
-         parse_tree.left = this._constructAND(parse_tree.left.left, old_right);
-         parse_tree.operator = this._constants.kOR;
-       }
-       this._pushDownAnds(parse_tree.left);
-       this._pushDownAnds(parse_tree.right);
+     const doTransformation = (parse_tree) => {
+      if (parse_tree.operator == this._constants.kAND) {
+        let ret;
+        if (parse_tree.right.operator == this._constants.kOR) {
+          const old_left = parse_tree.left;
+          parse_tree.left = this._constructAND(old_left, parse_tree.right.left);
+          parse_tree.right = this._constructAND(old_left, parse_tree.right.right);
+          parse_tree.operator = this._constants.kOR;
+          ret = true;
+        }
+        else if (parse_tree.left.operator == this._constants.kOR) {
+          const old_right = parse_tree.right;
+          parse_tree.right = this._constructAND(parse_tree.left.right, old_right);
+          parse_tree.left = this._constructAND(parse_tree.left.left, old_right);
+          parse_tree.operator = this._constants.kOR;
+          ret = true;
+        }
+        const ret1 = doTransformation(parse_tree.left);
+        const ret2 = doTransformation(parse_tree.right);
+        return ret || ret1 || ret2;
+      }
+      else if (parse_tree.operator == this._constants.kOR) {
+        const ret1 = doTransformation(parse_tree.left);
+        const ret2 = doTransformation(parse_tree.right);
+        return ret1 || ret2;
+      }
+      return false;
+        // Negations and terminals are terminating cases 
      }
-     else if (parse_tree.operator == this._constants.kOR) {
-       this._pushDownAnds(parse_tree.left);
-       this._pushDownAnds(parse_tree.right);
-     }
-       // Negations and terminals are terminating cases
+
+     while(doTransformation(parse_tree));
    };
 
    // Get all positive and negative variables
