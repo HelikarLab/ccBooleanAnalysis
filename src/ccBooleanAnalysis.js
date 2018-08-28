@@ -863,10 +863,17 @@
     // Main Logic - extract naive representation ( DNF as set of conditions and subconditions )
     iterateOrTree(parse_tree);
 
+    //we can extract negative regulators just from the components which have some additional positives
+    const regulatorCanExtractNegatives = (regulator) => {
+      return regulator.conditions && 
+          regulator.conditions.length > 0 && 
+          regulator.conditions.find(e => e.components.length <= 0) === undefined;
+    }
+
     //extract negative regulators
     let canNegatives = objMap(positive_regulators, regulator => {
         let negatives = [];
-        if(!regulator.conditions || !regulator.conditions.length)
+        if(!regulatorCanExtractNegatives(regulator))
             return [];
 
         regulator.conditions.forEach(condition => {
@@ -887,6 +894,7 @@
 
     //find negative regulators ( basically by groupping of subconditions )
     while(true){
+//    while(true){
         let occurences = {};
         //count occurences negative components inside positives
         objEach(canNegatives, a => a.forEach(v=>{
@@ -909,7 +917,7 @@
                     if(condition.conditions){
                         condition.conditions.forEach(subCondition => {
                             let pos = subCondition.components.indexOf(maxidx);
-                            if(pos >= 0){ 
+                            if(pos >= 0){
                                 subCondition.components.splice(pos,1);
                             }
                         });
