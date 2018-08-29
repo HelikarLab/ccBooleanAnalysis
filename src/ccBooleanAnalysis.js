@@ -780,24 +780,72 @@
         return ret;
     }
        
-       
+    let id = -1;
+    const Entity = class{
+      constructor(v){
+        this._id = id--;
+        this._value = v;
+      }
+      get id(){
+        return this._id+"";
+      }
+      get value(){
+        return this._value;
+      }
+      toString(){
+        return this.constructor.name+"["+this.id+"]";
+      }
+      valueOf(){
+        return this._id;
+      }
+    }
+
+    const classes = {
+      "component": class Component extends Entity{
+        constructor(v){
+          super(v);
+        }
+        get name(){
+          return this.value.name;
+        }
+      },
+      "regulator": class Regulator extends Entity{
+        constructor(v){
+          super(v);
+        }
+      }
+    }
+    const entityList = objMap(classes, () => new Set());
+    const allEntityList = new Set();
+    const addEntity = (type, entity) => {
+      entity = new classes[type](entity);
+      entityList[type].add(entity);
+      allEntityList.add(entity);
+      return entity;
+    }
+    const components = {};
+    const addComponent = (name) => {
+      return components[name] || (components[name] = addEntity("component", {name}));
+    }
+    const addRegulator = (props) => {
+      return addEntity("regulator", props);
+    }
+
     let positive_regulators = {}, negative_regulators = {};
     const addNegRegulator = (name) => (
-        negative_regulators[name] = negative_regulators[name] || {
-            component: name,
+        negative_regulators[name] = negative_regulators[name] || addRegulator({
+            component: addComponent(name),
             type: false
-        }
+        })
     );
     const addPosRegulator = (name) => (
-        positive_regulators[name] = positive_regulators[name] || {
-            component: name,
+        positive_regulators[name] = positive_regulators[name] || addRegulator({
+            component: addComponent(name),
             type: true,
             conditionRelation: false,
             conditions: []
-        }
+        })
     );
-
-
 
     // Tree traversal methods
     const iterateAndTree = (positive_holder, negative_holder, parse_tree) => {
@@ -806,6 +854,7 @@
       } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
         negative_holder.data.push(parse_tree.argument.name);
       } else {
+
        iterateAndTree(positive_holder, negative_holder, parse_tree.left);
        iterateAndTree(positive_holder, negative_holder, parse_tree.right);
       }
@@ -813,14 +862,14 @@
 
     const addLiteral = (positives, negatives) => {
       if(positives.length > 0){
-          let regulator = addPosRegulator(positives[0]);
+          let regulator = addPosRegulator(positives[0]).value;
           regulator.isAlone = (positives.length <= 1 && negatives.length <= 0) || regulator.isAlone;
 
           let cond = {
               state: true, // active
               type: true, // if/whencomponents.filter((_,idx)=>idx)]
               componentRelation: true, //cooperative
-              components: positives.slice(1),
+              components: positives.slice(1).map(addComponent),
           };
           if(negatives.length){
               cond.subConditionRelation = false;
@@ -828,7 +877,7 @@
                   componentRelation: true, //cooperative
                   state: false,    //inactive
                   type: true, // if/whencomponents.filter((_,idx)=>idx)]
-                  components: negatives
+                  components: negatives.map(addComponent)
               }];
           }
           regulator.conditions.push(cond);
@@ -864,14 +913,14 @@
     iterateOrTree(parse_tree);
 
     //we can extract negative regulators just from the components which have some additional positives
-    const regulatorCanExtractNegatives = (regulator) => {
-      return regulator.conditions && 
-          regulator.conditions.length > 0 && 
-          regulator.conditions.find(e => e.components.length <= 0) === undefined;
-    }
+    const regulatorCanExtractNegatives = (regulator) => 
+      regulator.conditions && 
+          (regulator.conditions.length > 0 && 
+          regulator.conditions.find(e => e.components.length <= 0) === undefined
+          ) || regulator.conditions.length === 1;
 
     //extract negative regulators
-    let canNegatives = objMap(positive_regulators, regulator => {
+    let canNegatives = objMap(positive_regulators, ({value: regulator}) => {
         let negatives = [];
         if(!regulatorCanExtractNegatives(regulator))
             return [];
@@ -894,29 +943,39 @@
 
     //find negative regulators ( basically by groupping of subconditions )
     while(true){
-//    while(true){
         let occurences = {};
         //count occurences negative components inside positives
-        objEach(canNegatives, a => a.forEach(v=>{
+        objEach(canNegatives, a => a.forEach(({name:v})=>{
             if(negative_regulators[v]) return;
             if(!occurences[v]) occurences[v] = 0;
+
             occurences[v]++;
         }));
+
+        console.log("occurences");
+        console.log(occurences);
+
+        console.log(canNegatives);
+
         //find negative component with maximal occurence inside positives
         let maxidx = undefined;
         objEach(occurences, (v,k) => {if(!negative_regulators[k] && !positive_regulators[k] && occurences[k] > (occurences[maxidx] || -Infinity)){maxidx = k}});
         if(maxidx){
             let dominants = [];
-            objEach(positive_regulators, (regulator,name) => {
-                if(!regulator.conditions || 
-                        (regulator.conditions || []).length <= 0 ||
-                        canNegatives[name].indexOf(maxidx) < 0)
+            objEach(positive_regulators, ({value: regulator},name) => {
+              if(!regulator.conditions || 
+                        (regulator.conditions || []).length <= 0)/* ||
+                        canNegatives[name].indexOf(maxidx) < 0)*/
                     return;
 
                 regulator.conditions.forEach(condition => {
                     if(condition.conditions){
                         condition.conditions.forEach(subCondition => {
-                            let pos = subCondition.components.indexOf(maxidx);
+                            const pos = subCondition.components.findIndex(e => e.name === maxidx);
+
+                            console.log("POSSS");
+                            console.log(pos);
+
                             if(pos >= 0){
                                 subCondition.components.splice(pos,1);
                             }
@@ -937,7 +996,7 @@
 
 
     //remove subConditions without any components
-    objEach(positive_regulators, regulator => {
+    objEach(positive_regulators, ({value: regulator}) => {
         regulator.conditions.forEach(condition => {
             if(condition.conditions){
                 condition.conditions = condition.conditions.filter(e=>e.components.length);
@@ -949,7 +1008,7 @@
 
 
     //transform regulators which have condition without components but this condition have subconditions with components to conditions
-    objEach(positive_regulators, regulator => {
+    objEach(positive_regulators, ({value: regulator}) => {
         regulator.conditions.forEach(condition => {
             if(condition.components.length <= 0 && condition.conditions){
                 //has just negative regulators >> transform subcondition into condition
@@ -964,20 +1023,20 @@
             }
         });
     });
-    objEach(positive_regulators, regulator => {
+    objEach(positive_regulators, ({value: regulator}) => {
         regulator.conditions = regulator.conditions.filter(condition => condition.components.length);
     });
 
     //some regulators have isAlone, and when they have it and they have
     let singles = [];
-    const extractSingles = regulator => {
+    const extractSingles = ({value:regulator}) => {
       if(regulator.isAlone){
         delete regulator.isAlone;
         if(regulator.conditions && regulator.conditions.length > 0){
-          singles.push({
+          singles.push(addRegulator({
             component: regulator.component,
             type: regulator.type,
-          });
+          }));
         }
       }
     };
@@ -985,7 +1044,32 @@
     objEach(positive_regulators, extractSingles);
     objEach(negative_regulators, extractSingles);
 
-    return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
+    const mapToJSON = (value) => {
+      let ret = {};
+      for(let e of value){
+        ret[e.id] = e.value;
+      }
+      return ret;
+    }
+
+    //transform references to the ids ( recursively )
+    const transformReferences = (v) => {
+      if(typeof v !== 'object' || v === null)
+        return v;
+      if(Array.isArray(v)){
+        return v.map(transformReferences);
+      }else if(Object.values(classes).find(Class => v instanceof Class)){
+        return v.id;
+      }else{
+        return objMap(v, transformReferences);
+      }
+    }
+
+    const retObj = transformReferences(objMap(entityList, (e) => {
+      return mapToJSON(e.values());
+    }));
+
+    return retObj;
   };
 
   const formulaToStr = (f) => {
@@ -1085,10 +1169,6 @@
     let dnf = this.getDNFObjectEncoding(s);
     let olddnf = dnf;
 
-    console.log("DNF")
-    console.log(JSON.stringify(dnf, null, 1 ));
-    console.log(JSON.stringify(formulaToStr(dnfToJsep(dnf)), null, 1 ));
-
     let keys = getIdentifiersFromTree(this.getParseTree(s));
     let regexes = this._getRegexes(keys);
     let absentState = false;
@@ -1142,13 +1222,12 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
-    console.log(JSON.stringify({
-      regulators: getRegulators(tree),
-      absentState
-    },null,2));
 
+
+    const { regulator,component } = getRegulators(tree);
     return {
-       regulators: getRegulators(tree),
+       regulators : regulator,
+       components : component,
        absentState
      };
    };
