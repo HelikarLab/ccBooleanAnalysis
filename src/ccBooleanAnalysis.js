@@ -779,6 +779,8 @@
         for(var k in o) ret[k] = f(o[k],k);
         return ret;
     }
+
+    
        
     let id = -1;
     const Entity = class{
@@ -847,6 +849,28 @@
         })
     );
 
+    //transform references to the ids ( recursively )
+    const transformReferences = (v) => {
+      if(typeof v !== 'object' || v === null)
+        return v;
+      if(Array.isArray(v)){
+        return v.map(transformReferences);
+      }else if(Object.values(classes).find(Class => v instanceof Class)){
+        return v.id;
+      }else{
+        return objMap(v, transformReferences);
+      }
+    }
+    const mapToJSON = (value) => {
+      let ret = {};
+      for(let e of value){
+        ret[e.id] = e.value;
+      }
+      return ret;
+    }
+
+
+
     // Tree traversal methods
     const iterateAndTree = (positive_holder, negative_holder, parse_tree) => {
       if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
@@ -882,8 +906,8 @@
           }
           regulator.conditions.push(cond);
       }else if(negatives.length > 0){
-          let reg = negatives.forEach(addNegRegulator);
-            reg.isAlone = negatives.length <= 1;
+          let reg = negatives.forEach(addNegRegulator).value;
+          reg.isAlone = negatives.length <= 1;
       }
     }
 
@@ -912,6 +936,17 @@
     // Main Logic - extract naive representation ( DNF as set of conditions and subconditions )
     iterateOrTree(parse_tree);
 
+    let regulatorsByComponent = new Map();
+    const addRegulatorToComponentMap = (regulator) => {
+      const {value: {component}} = regulator;
+      if(!regulatorsByComponent.has(component)){
+        regulatorsByComponent.set(component, regulator);
+      }
+    }
+
+    objEach(positive_regulators, addRegulatorToComponentMap);
+    objEach(negative_regulators, addRegulatorToComponentMap);
+
     //we can extract negative regulators just from the components which have some additional positives
     const regulatorCanExtractNegatives = (regulator) => 
       regulator.conditions && 
@@ -920,7 +955,7 @@
           ) || regulator.conditions.length === 1;
 
     //extract negative regulators
-    let canNegatives = objMap(positive_regulators, ({value: regulator}) => {
+    let canNegatives = objMap(positive_regulators, ({value: regulator}, name) => {
         let negatives = [];
         if(!regulatorCanExtractNegatives(regulator))
             return [];
@@ -941,6 +976,21 @@
         return inters;
     });
 
+    console.log("POSITIVE_REGULATORS");
+    console.log(JSON.stringify(transformReferences(
+      objMap(positive_regulators, (e) => {
+        return e.value;
+      })
+      ),null,2));
+
+
+    console.log("can negatives");
+    console.log(canNegatives);
+
+    console.log("END");
+
+    let step = 0;
+
     //find negative regulators ( basically by groupping of subconditions )
     while(true){
         let occurences = {};
@@ -952,40 +1002,38 @@
             occurences[v]++;
         }));
 
-        console.log("occurences");
-        console.log(occurences);
-
-        console.log(canNegatives);
-
         //find negative component with maximal occurence inside positives
         let maxidx = undefined;
-        objEach(occurences, (v,k) => {if(!negative_regulators[k] && !positive_regulators[k] && occurences[k] > (occurences[maxidx] || -Infinity)){maxidx = k}});
+        objEach(occurences, (v,k) => {if(!negative_regulators[k] /* && !positive_regulators[k] */ && occurences[k] > (occurences[maxidx] || -Infinity)){maxidx = k}});
+
         if(maxidx){
-            let dominants = [];
-            objEach(positive_regulators, ({value: regulator},name) => {
-              if(!regulator.conditions || 
-                        (regulator.conditions || []).length <= 0)/* ||
-                        canNegatives[name].indexOf(maxidx) < 0)*/
+          let dominants = [];
+          objEach(positive_regulators, ({value: regulator},name) => {
+              if( !regulator.conditions || 
+                        (regulator.conditions || []).length <= 0 ||
+                        !canNegatives[name].find( e => e === addComponent(maxidx) ) )
                     return;
 
                 regulator.conditions.forEach(condition => {
                     if(condition.conditions){
                         condition.conditions.forEach(subCondition => {
                             const pos = subCondition.components.findIndex(e => e.name === maxidx);
-
-                            console.log("POSSS");
-                            console.log(pos);
-
                             if(pos >= 0){
                                 subCondition.components.splice(pos,1);
-                            }
+
+                                const pushRegulator = regulatorsByComponent.get(regulator.component);
+                                if(!dominants.find(e=>e===pushRegulator))
+                                  dominants.push(pushRegulator);
+                              }
                         });
                     }
                 });
-                dominants.push({component: regulator.component});
             });
-            if(dominants.length)
-                addNegRegulator(maxidx).dominants = dominants;
+
+            if(dominants.length){
+                let negative = addNegRegulator(maxidx).value;
+                negative.dominants = (negative.dominants || []).concat(dominants);
+            }
 
             //extract maxidx from the negative regulators
             objEach(canNegatives, v=>{ if(v.indexOf(maxidx) >= 0) v.splice(v.indexOf(maxidx),1); });
@@ -1043,27 +1091,6 @@
 
     objEach(positive_regulators, extractSingles);
     objEach(negative_regulators, extractSingles);
-
-    const mapToJSON = (value) => {
-      let ret = {};
-      for(let e of value){
-        ret[e.id] = e.value;
-      }
-      return ret;
-    }
-
-    //transform references to the ids ( recursively )
-    const transformReferences = (v) => {
-      if(typeof v !== 'object' || v === null)
-        return v;
-      if(Array.isArray(v)){
-        return v.map(transformReferences);
-      }else if(Object.values(classes).find(Class => v instanceof Class)){
-        return v.id;
-      }else{
-        return objMap(v, transformReferences);
-      }
-    }
 
     const retObj = transformReferences(objMap(entityList, (e) => {
       return mapToJSON(e.values());
@@ -1222,7 +1249,7 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
-
+    console.log(parseTreeToString());
 
     const { regulator,component } = getRegulators(tree);
     return {
