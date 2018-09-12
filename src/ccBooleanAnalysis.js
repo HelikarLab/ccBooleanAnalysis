@@ -1249,7 +1249,7 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
-    console.log(parseTreeToString());
+
 
     const { regulator,component } = getRegulators(tree);
     return {
