@@ -58,6 +58,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
 	//    ccBooleanAnalysis 0.1.0
 	//    ccBooleanAnalysis may be distributed ____
 	//    http://future.com
@@ -123,6 +131,49 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return jsep(s);
 	};
 	
+	var getIdentifiersFromTree = function getIdentifiersFromTree(_ref) {
+	  var type = _ref.type,
+	      name = _ref.name,
+	      argument = _ref.argument,
+	      left = _ref.left,
+	      right = _ref.right;
+	  var identifiers = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+	
+	  switch (type) {
+	    case ccBooleanAnalysis._constants.kIdentifier:
+	      identifiers[name] = name;
+	      break;
+	    case ccBooleanAnalysis._constants.kUnaryExpression:
+	      getIdentifiersFromTree(argument, identifiers);
+	      break;
+	    case ccBooleanAnalysis._constants.kBinaryExpression:
+	      getIdentifiersFromTree(left, identifiers);
+	      getIdentifiersFromTree(right, identifiers);
+	      break;
+	  }
+	  return identifiers;
+	};
+	
+	var parseTreeToString = function parseTreeToString(_ref2) {
+	  var type = _ref2.type,
+	      name = _ref2.name,
+	      argument = _ref2.argument,
+	      operator = _ref2.operator,
+	      left = _ref2.left,
+	      right = _ref2.right;
+	
+	  switch (type) {
+	    case ccBooleanAnalysis._constants.kIdentifier:
+	      return name;
+	    case ccBooleanAnalysis._constants.kUnaryExpression:
+	      return operator + "(" + parseTreeToString(argument) + ")";
+	    case ccBooleanAnalysis._constants.kBinaryExpression:
+	      return "(" + parseTreeToString(left) + " " + operator + " " + parseTreeToString(right) + ")";
+	    default:
+	      throw new Error("Unreachable");
+	  }
+	};
+	
 	////////////////////////////////////////
 	////////////////////////////////////////
 	////        Boolean Equivalence
@@ -136,14 +187,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {object} A hashtable representing the expression in DNF form. Useful for various functions in our library.
 	 */
 	ccBooleanAnalysis.getDNFObjectEncoding = function (s) {
+	  var _this = this;
+	
 	  var iterateAndTree = function iterateAndTree(positive_holder, negative_holder, parse_tree) {
 	    if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
 	      positive_holder.data.push(parse_tree.name);
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
 	      negative_holder.data.push(parse_tree.argument.name);
-	    } else {
+	    } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
 	      iterateAndTree(positive_holder, negative_holder, parse_tree.left);
 	      iterateAndTree(positive_holder, negative_holder, parse_tree.right);
+	    } else {
+	      throw new Error("UNREACHABLE");
 	    }
 	  };
 	
@@ -177,6 +232,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Convert parse tree format to DNF
 	  var parse_tree = this.getParseTree(s);
 	  this._convertToNegationForm(parse_tree);
+	
 	  this._pushDownAnds(parse_tree);
 	
 	  // Main Logic
@@ -205,9 +261,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  var conjuctions_hashtable = {};
-	  for (var _i = 0; _i < conjuctions.data.length; _i++) {
-	    var conjuction = conjuctions.data[_i];
-	    var key = this._get_union(conjuction[0], conjuction[1]).join('');
+	  var deepCopy = function deepCopy(e) {
+	    return JSON.parse(JSON.stringify(e));
+	  };
+	
+	  conjuctions.data.forEach(function (conjuction) {
+	    var key = _this._get_union(conjuction[0], conjuction[1]).join('');
 	
 	    var no_collision = true;
 	    if (key in conjuctions_hashtable) {
@@ -220,17 +279,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var conjuction_has_neg = collision[0].length == conjuction[0].length + 1 && collision[1].length == conjuction[1].length - 1;
 	        var _conjuction_a = void 0,
 	            _conjuction_b = void 0;
+	
 	        if (collision_has_neg || conjuction_has_neg) {
 	          if (collision_has_neg) {
-	            _conjuction_a = conjuction.slice();
-	            _conjuction_b = collision.slice();
+	            _conjuction_a = deepCopy(conjuction);
+	            _conjuction_b = deepCopy(collision);
 	          } else {
-	            _conjuction_a = collision.slice();
-	            _conjuction_b = conjuction.slice();
+	            _conjuction_a = deepCopy(collision);
+	            _conjuction_b = deepCopy(conjuction);
 	          }
 	
 	          // get and remove this intersection
-	          var intersection = [this._remove_intersection(_conjuction_a[0], _conjuction_b[0]), this._remove_intersection(_conjuction_a[1], _conjuction_b[1])];
+	          var intersection = [_this._remove_intersection(_conjuction_a[0], _conjuction_b[0]), _this._remove_intersection(_conjuction_a[1], _conjuction_b[1])];
 	
 	          // confirm that the only difference is a term switched from pos to neg
 	          if (_conjuction_a[0].length == 1 && _conjuction_a[1].length === 0 && _conjuction_b[1].length == 1 && _conjuction_b[0].length === 0 && _conjuction_a[0][0] == _conjuction_b[1][0]) {
@@ -240,7 +300,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            conjuctions_hashtable[key].splice(_j, 1);
 	            _j--;
 	
-	            var new_key = this._get_union(intersection[0], intersection[1]).join('');
+	            var new_key = _this._get_union(intersection[0], intersection[1]).join('');
 	            if (new_key in conjuctions_hashtable) {
 	              conjuctions_hashtable[new_key].push(intersection);
 	            } else {
@@ -257,8 +317,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        conjuctions_hashtable[key].push(conjuction);
 	      }
 	    }
-	  }
-	
+	  });
 	  return conjuctions_hashtable;
 	};
 	
@@ -971,21 +1030,147 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }return ret;
 	  };
 	
+	  var id = -1;
+	  var Entity = function () {
+	    function Entity(v) {
+	      _classCallCheck(this, Entity);
+	
+	      this._id = id--;
+	      this._value = v;
+	    }
+	
+	    _createClass(Entity, [{
+	      key: 'toString',
+	      value: function toString() {
+	        return this.constructor.name + "[" + this.id + "]";
+	      }
+	    }, {
+	      key: 'valueOf',
+	      value: function valueOf() {
+	        return this._id;
+	      }
+	    }, {
+	      key: 'id',
+	      get: function get() {
+	        return this._id + "";
+	      }
+	    }, {
+	      key: 'value',
+	      get: function get() {
+	        return this._value;
+	      }
+	    }]);
+	
+	    return Entity;
+	  }();
+	
+	  var classes = {
+	    "component": function (_Entity) {
+	      _inherits(Component, _Entity);
+	
+	      function Component(v) {
+	        _classCallCheck(this, Component);
+	
+	        return _possibleConstructorReturn(this, (Component.__proto__ || Object.getPrototypeOf(Component)).call(this, v));
+	      }
+	
+	      _createClass(Component, [{
+	        key: 'name',
+	        get: function get() {
+	          return this.value.name;
+	        }
+	      }]);
+	
+	      return Component;
+	    }(Entity),
+	    "regulator": function (_Entity2) {
+	      _inherits(Regulator, _Entity2);
+	
+	      function Regulator(v) {
+	        _classCallCheck(this, Regulator);
+	
+	        return _possibleConstructorReturn(this, (Regulator.__proto__ || Object.getPrototypeOf(Regulator)).call(this, v));
+	      }
+	
+	      return Regulator;
+	    }(Entity)
+	  };
+	  var entityList = objMap(classes, function () {
+	    return new Set();
+	  });
+	  var allEntityList = new Set();
+	  var addEntity = function addEntity(type, entity) {
+	    entity = new classes[type](entity);
+	    entityList[type].add(entity);
+	    allEntityList.add(entity);
+	    return entity;
+	  };
+	  var components = {};
+	  var addComponent = function addComponent(name) {
+	    return components[name] || (components[name] = addEntity("component", { name: name }));
+	  };
+	  var addRegulator = function addRegulator(props) {
+	    return addEntity("regulator", props);
+	  };
+	
 	  var positive_regulators = {},
 	      negative_regulators = {};
 	  var addNegRegulator = function addNegRegulator(name) {
-	    return negative_regulators[name] = negative_regulators[name] || {
-	      component: name,
+	    return negative_regulators[name] = negative_regulators[name] || addRegulator({
+	      component: addComponent(name),
 	      type: false
-	    };
+	    });
 	  };
 	  var addPosRegulator = function addPosRegulator(name) {
-	    return positive_regulators[name] = positive_regulators[name] || {
-	      component: name,
+	    return positive_regulators[name] = positive_regulators[name] || addRegulator({
+	      component: addComponent(name),
 	      type: true,
 	      conditionRelation: false,
 	      conditions: []
-	    };
+	    });
+	  };
+	
+	  //transform references to the ids ( recursively )
+	  var transformReferences = function transformReferences(v) {
+	    if ((typeof v === 'undefined' ? 'undefined' : _typeof(v)) !== 'object' || v === null) return v;
+	    if (Array.isArray(v)) {
+	      return v.map(transformReferences);
+	    } else if (Object.values(classes).find(function (Class) {
+	      return v instanceof Class;
+	    })) {
+	      return v.id;
+	    } else {
+	      return objMap(v, transformReferences);
+	    }
+	  };
+	  var mapToJSON = function mapToJSON(value) {
+	    var ret = {};
+	    var _iteratorNormalCompletion9 = true;
+	    var _didIteratorError9 = false;
+	    var _iteratorError9 = undefined;
+	
+	    try {
+	      for (var _iterator9 = value[Symbol.iterator](), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
+	        var e = _step9.value;
+	
+	        ret[e.id] = e.value;
+	      }
+	    } catch (err) {
+	      _didIteratorError9 = true;
+	      _iteratorError9 = err;
+	    } finally {
+	      try {
+	        if (!_iteratorNormalCompletion9 && _iterator9.return) {
+	          _iterator9.return();
+	        }
+	      } finally {
+	        if (_didIteratorError9) {
+	          throw _iteratorError9;
+	        }
+	      }
+	    }
+	
+	    return ret;
 	  };
 	
 	  // Tree traversal methods
@@ -995,8 +1180,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
 	      negative_holder.data.push(parse_tree.argument.name);
 	    } else {
+	
 	      iterateAndTree(positive_holder, negative_holder, parse_tree.left);
 	      iterateAndTree(positive_holder, negative_holder, parse_tree.right);
+	    }
+	  };
+	
+	  var addLiteral = function addLiteral(positives, negatives) {
+	    if (positives.length > 0) {
+	      var regulator = addPosRegulator(positives[0]).value;
+	      regulator.isAlone = positives.length <= 1 && negatives.length <= 0 || regulator.isAlone;
+	
+	      var cond = {
+	        state: true, // active
+	        type: true, // if/whencomponents.filter((_,idx)=>idx)]
+	        componentRelation: true, //cooperative
+	        components: positives.slice(1).map(addComponent)
+	      };
+	      if (negatives.length) {
+	        cond.subConditionRelation = false;
+	        cond.conditions = [{
+	          componentRelation: true, //cooperative
+	          state: false, //inactive
+	          type: true, // if/whencomponents.filter((_,idx)=>idx)]
+	          components: negatives.map(addComponent)
+	        }];
+	      }
+	      regulator.conditions.push(cond);
+	    } else if (negatives.length > 0) {
+	      var reg = negatives.forEach(addNegRegulator).value;
+	      reg.isAlone = negatives.length <= 1;
 	    }
 	  };
 	
@@ -1009,35 +1222,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var positives = and_positive_holder.data;
 	      var negatives = and_negative_holder.data;
 	
-	      if (positives.length > 0) {
-	        var regulator = addPosRegulator(positives[0]);
-	        regulator.isAlone = positives.length <= 1 && negatives.length <= 0 || regulator.isAlone;
-	
-	        var cond = {
-	          state: true, // active
-	          type: true, // if/whencomponents.filter((_,idx)=>idx)]
-	          componentRelation: true, //cooperative
-	          components: positives.slice(1)
-	        };
-	        if (negatives.length) {
-	          cond.subConditionRelation = false;
-	          cond.conditions = [{
-	            componentRelation: true, //cooperative
-	            state: false, //inactive
-	            type: true, // if/whencomponents.filter((_,idx)=>idx)]
-	            components: negatives
-	          }];
-	        }
-	        regulator.conditions.push(cond);
-	      } else if (negatives.length > 0) {
-	        negatives.forEach(addNegRegulator);
-	      }
+	      addLiteral(positives, negatives);
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kIdentifier) {
 	      // Add a positive regulator with no conditions
-	      addPosRegulator(parse_tree.name).isAlone = true;
+	      addLiteral([parse_tree.name], []);
 	    } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
 	      // Add a negative regulator with no conditions
-	      addNegRegulator(parse_tree.argument.name).isAlone = true;
+	      addLiteral([], [parse_tree.argument.name]);
 	    } else {
 	      // kOR
 	      iterateOrTree(parse_tree.left);
@@ -1048,10 +1239,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Main Logic - extract naive representation ( DNF as set of conditions and subconditions )
 	  iterateOrTree(parse_tree);
 	
+	  var regulatorsByComponent = new Map();
+	  var addRegulatorToComponentMap = function addRegulatorToComponentMap(regulator) {
+	    var component = regulator.value.component;
+	
+	    if (!regulatorsByComponent.has(component)) {
+	      regulatorsByComponent.set(component, regulator);
+	    }
+	  };
+	
+	  var removeConditionsWithoutNoComponentsAndSubConditions = function removeConditionsWithoutNoComponentsAndSubConditions(regulator) {
+	    if (regulator.conditions) regulator.conditions = regulator.conditions.filter(function (condition) {
+	      return condition.components.length || (condition.conditions || []).length;
+	    });
+	  };
+	
+	  objEach(positive_regulators, removeConditionsWithoutNoComponentsAndSubConditions);
+	  objEach(negative_regulators, removeConditionsWithoutNoComponentsAndSubConditions);
+	
+	  objEach(positive_regulators, addRegulatorToComponentMap);
+	  objEach(negative_regulators, addRegulatorToComponentMap);
+	
+	  //we can extract negative regulators just from the components which have some additional positives
+	  var regulatorCanExtractNegatives = function regulatorCanExtractNegatives(regulator) {
+	    return regulator.conditions && regulator.conditions.length > 0 && regulator.conditions.find(function (e) {
+	      return e.components.length <= 0;
+	    }) === undefined || regulator.conditions.length === 1;
+	  };
+	
 	  //extract negative regulators
-	  var canNegatives = objMap(positive_regulators, function (regulator) {
+	  var canNegatives = objMap(positive_regulators, function (_ref3, name) {
+	    var regulator = _ref3.value;
+	
 	    var negatives = [];
-	    if (!regulator.conditions || !regulator.conditions.length) return [];
+	    if (!regulatorCanExtractNegatives(regulator)) return [];
 	
 	    regulator.conditions.forEach(function (condition) {
 	      if (condition.conditions && regulator.conditions.length) {
@@ -1075,37 +1296,56 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var occurences = {};
 	    //count occurences negative components inside positives
 	    objEach(canNegatives, function (a) {
-	      return a.forEach(function (v) {
+	      return a.forEach(function (_ref8) {
+	        var v = _ref8.name;
+	
 	        if (negative_regulators[v]) return;
 	        if (!occurences[v]) occurences[v] = 0;
+	
 	        occurences[v]++;
 	      });
 	    });
+	
 	    //find negative component with maximal occurence inside positives
 	    var maxidx = undefined;
 	    objEach(occurences, function (v, k) {
-	      if (!negative_regulators[k] && !positive_regulators[k] && occurences[k] > (occurences[maxidx] || -Infinity)) {
+	      if (!negative_regulators[k] /* && !positive_regulators[k] */ && occurences[k] > (occurences[maxidx] || -Infinity)) {
 	        maxidx = k;
 	      }
 	    });
+	
 	    if (maxidx) {
 	      var dominants = [];
-	      objEach(positive_regulators, function (regulator, name) {
-	        if (!regulator.conditions || (regulator.conditions || []).length <= 0 || canNegatives[name].indexOf(maxidx) < 0) return;
+	      objEach(positive_regulators, function (_ref9, name) {
+	        var regulator = _ref9.value;
+	
+	        if (!regulator.conditions || (regulator.conditions || []).length <= 0 || !canNegatives[name].find(function (e) {
+	          return e === addComponent(maxidx);
+	        })) return;
 	
 	        regulator.conditions.forEach(function (condition) {
 	          if (condition.conditions) {
 	            condition.conditions.forEach(function (subCondition) {
-	              var pos = subCondition.components.indexOf(maxidx);
+	              var pos = subCondition.components.findIndex(function (e) {
+	                return e.name === maxidx;
+	              });
 	              if (pos >= 0) {
 	                subCondition.components.splice(pos, 1);
+	
+	                var pushRegulator = regulatorsByComponent.get(regulator.component);
+	                if (!dominants.find(function (e) {
+	                  return e === pushRegulator;
+	                })) dominants.push(pushRegulator);
 	              }
 	            });
 	          }
 	        });
-	        dominants.push({ component: regulator.component });
 	      });
-	      if (dominants.length) addNegRegulator(maxidx).dominants = dominants;
+	
+	      if (dominants.length) {
+	        var negative = addNegRegulator(maxidx).value;
+	        negative.dominants = (negative.dominants || []).concat(dominants);
+	      }
 	
 	      //extract maxidx from the negative regulators
 	      objEach(canNegatives, function (v) {
@@ -1116,14 +1356,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  };
 	
-	  while (true) {
+	  while (false) {
 	    var _ret = _loop();
 	
 	    if (_ret === 'break') break;
 	  }
 	
 	  //remove subConditions without any components
-	  objEach(positive_regulators, function (regulator) {
+	  objEach(positive_regulators, function (_ref4) {
+	    var regulator = _ref4.value;
+	
 	    regulator.conditions.forEach(function (condition) {
 	      if (condition.conditions) {
 	        condition.conditions = condition.conditions.filter(function (e) {
@@ -1134,7 +1376,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	
 	  //transform regulators which have condition without components but this condition have subconditions with components to conditions
-	  objEach(positive_regulators, function (regulator) {
+	  objEach(positive_regulators, function (_ref5) {
+	    var regulator = _ref5.value;
+	
 	    regulator.conditions.forEach(function (condition) {
 	      if (condition.components.length <= 0 && condition.conditions) {
 	        //has just negative regulators >> transform subcondition into condition
@@ -1149,7 +1393,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    });
 	  });
-	  objEach(positive_regulators, function (regulator) {
+	  objEach(positive_regulators, function (_ref6) {
+	    var regulator = _ref6.value;
+	
 	    regulator.conditions = regulator.conditions.filter(function (condition) {
 	      return condition.components.length;
 	    });
@@ -1157,21 +1403,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  //some regulators have isAlone, and when they have it and they have
 	  var singles = [];
-	  var extractSingles = function extractSingles(regulator) {
+	  var extractSingles = function extractSingles(_ref7) {
+	    var regulator = _ref7.value;
+	
 	    if (regulator.isAlone) {
 	      delete regulator.isAlone;
 	      if (regulator.conditions && regulator.conditions.length > 0) {
-	        singles.push({
+	        singles.push(addRegulator({
 	          component: regulator.component,
 	          type: regulator.type
-	        });
+	        }));
 	      }
 	    }
 	  };
+	
 	  objEach(positive_regulators, extractSingles);
 	  objEach(negative_regulators, extractSingles);
 	
-	  return ccBooleanAnalysis._getValues(positive_regulators).concat(ccBooleanAnalysis._getValues(negative_regulators)).concat(singles);
+	  var retObj = transformReferences(objMap(entityList, function (e) {
+	    return mapToJSON(e.values());
+	  }));
+	
+	  return retObj;
 	};
 	
 	var formulaToStr = function formulaToStr(f) {
@@ -1183,6 +1436,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return '(' + f.operator + '(' + formulaToStr(f.argument) + '))';
 	    case cons.kIdentifier:
 	      return f.name;
+	    default:
+	      throw new Error("Unexpected node (type >>" + f.type + "<<) in parse tree");
+	  }
+	};
+	
+	var formulaToReadable = function formulaToReadable(f) {
+	  var addPadding = function addPadding(e) {
+	    return e.map(function (e) {
+	      return ' ' + e;
+	    });
+	  };
+	  var cons = ccBooleanAnalysis._constants;
+	  switch (f.type) {
+	    case cons.kBinaryExpression:
+	      return addPadding(formulaToReadable(f.left)).concat([f.operator]).concat(addPadding(formulaToReadable(f.right)));
+	    case cons.kUnaryExpression:
+	      return [f.operator].concat(addPadding(formulaToReadable(f.argument)));
+	    case cons.kIdentifier:
+	      return [f.name];
 	    default:
 	      throw new Error("Unexpected node (type >>" + f.type + "<<) in parse tree");
 	  }
@@ -1255,9 +1527,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return r;
 	  };
 	
-	  var dnf = this.getDNFObjectEncoding(s);
-	
-	  var keys = getKeys({}, dnf);
+	  var dnf = [];
+	  var keys = getIdentifiersFromTree(this.getParseTree(s));
 	  var regexes = this._getRegexes(keys);
 	  var absentState = false;
 	
@@ -1269,78 +1540,74 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  var tree = void 0;
-	  if (hasPositive && this._evaluateState(s, regexes)) {
-	    //absent state is present
-	
-	    var newdnf = this.getDNFObjectEncoding('(' + s + ')*(' + Object.keys(keys).join('+') + ')');
-	
-	    var newkeys = getKeys({}, newdnf);
-	    var missing = Object.keys(keys).filter(function (k) {
-	      return newkeys[k] === undefined;
-	    });
-	    if (missing.length > 0) {
-	      //extracting absent state does not remove any component from equation >> have to fill it with the missing values
-	      var newdnfarr = ccBooleanAnalysis._getValues(newdnf);
-	      var elsize = function elsize(e) {
-	        return e[0].length + e[1].length;
-	      };
-	      var len = function len(e) {
-	        return e.map(elsize);
-	      };
-	      newdnfarr.sort(function (v1, v2) {
-	        return Math.max.apply(null, len(v2)) - Math.max.apply(null, len(v1));
-	      });
-	      if (newdnfarr.length) {
-	        tree = dnfToJsep(newdnf);
-	
-	        newdnfarr[0].sort(function (v1, v2) {
-	          return elsize(v2) - elsize(v1);
-	        });
-	        var orig = newdnfarr[0].shift();
-	
-	        if (newdnfarr.length <= 0) {
-	          var _k2 = orig[0].concat(orig[1]).sort().join("");
-	          delete newdnf[_k2];
-	        }
-	
-	        var _k = orig[0].concat(orig[1]).concat(missing).sort().join("");
-	        if (!newdnf[_k]) {
-	          newdnf[_k] = [];
-	        }
-	
-	        //loop through state space of all missing elements
-	        for (var i = 0; i < 1 << missing.length; i++) {
-	          var newd = [orig[0].map(function (e) {
-	            return e;
-	          }), orig[1].map(function (e) {
-	            return e;
-	          })];
-	          for (var j = 0; j < missing.length; j++) {
-	            newd[i >> j & 1].push(missing[j]);
-	          }
-	          newdnf[_k].push(newd);
-	        }
-	
-	        tree = dnfToJsep(newdnf);
-	        absentState = true;
-	        dnf = newdnf;
-	      } else {
-	        tree = this.getParseTree(s);
-	      }
-	    } else {
-	      tree = dnfToJsep(newdnf);
-	      absentState = true;
-	      dnf = newdnf;
-	    }
-	  } else {
-	    tree = this.getParseTree(s);
+	  //check for absent state
+	  if (this._evaluateState(s, regexes.map(function (e) {
+	    return [e[0], false];
+	  }))) {
+	    var newdnf = this.getDNFObjectEncoding('(' + s + ')*(' + Object.keys(keys).join(' + ') + ')');
+	    absentState = true;
+	    dnf = newdnf;
 	  }
 	
+	  var newkeys = getKeys({}, dnf);
+	  var missing = Object.keys(keys).filter(function (k) {
+	    return newkeys[k] === undefined;
+	  });
+	
+	  if (missing.length > 0) {
+	    //extracting absent state does not remove any component from equation >> have to fill it with the missing values
+	    var newdnfarr = ccBooleanAnalysis._getValues(dnf);
+	    var elsize = function elsize(e) {
+	      return e[0].length + e[1].length;
+	    };
+	    var len = function len(e) {
+	      return e.map(elsize);
+	    };
+	    newdnfarr.sort(function (v1, v2) {
+	      return Math.max.apply(null, len(v2)) - Math.max.apply(null, len(v1));
+	    });
+	    if (newdnfarr.length) {
+	      newdnfarr[0].sort(function (v1, v2) {
+	        return elsize(v2) - elsize(v1);
+	      });
+	      var orig = newdnfarr[0].shift();
+	
+	      if (newdnfarr.length <= 0) {
+	        var _k2 = orig[0].concat(orig[1]).sort().join("");
+	        delete dnf[_k2];
+	      }
+	
+	      var _k = orig[0].concat(orig[1]).concat(missing).sort().join("");
+	      if (!dnf[_k]) {
+	        dnf[_k] = [];
+	      }
+	
+	      //loop through state space of all missing elements
+	      for (var i = 0; i < 1 << missing.length; i++) {
+	        var newd = [orig[0].map(function (e) {
+	          return e;
+	        }), orig[1].map(function (e) {
+	          return e;
+	        })];
+	        for (var j = 0; j < missing.length; j++) {
+	          newd[i >> j & 1].push(missing[j]);
+	        }
+	        dnf[_k].push(newd);
+	      }
+	    }
+	  }
+	
+	  tree = dnfToJsep(dnf);
 	  this._convertToNegationForm(tree);
 	  this._pushDownAnds(tree);
 	
+	  var _getRegulators = getRegulators(tree),
+	      regulator = _getRegulators.regulator,
+	      component = _getRegulators.component;
+	
 	  return {
-	    regulators: getRegulators(tree),
+	    regulators: regulator,
+	    components: component,
 	    absentState: absentState
 	  };
 	};
@@ -1644,25 +1911,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	// Distribute ANDs across ORs
 	ccBooleanAnalysis._pushDownAnds = function (parse_tree) {
-	  if (parse_tree.operator == this._constants.kAND) {
-	    if (parse_tree.right.operator == this._constants.kOR) {
-	      var old_left = parse_tree.left;
-	      parse_tree.left = this._constructAND(old_left, parse_tree.right.left);
-	      parse_tree.right = this._constructAND(old_left, parse_tree.right.right);
-	      parse_tree.operator = this._constants.kOR;
-	    } else if (parse_tree.left.operator == this._constants.kOR) {
-	      var old_right = parse_tree.right;
-	      parse_tree.right = this._constructAND(parse_tree.left.right, old_right);
-	      parse_tree.left = this._constructAND(parse_tree.left.left, old_right);
-	      parse_tree.operator = this._constants.kOR;
+	  var _this4 = this;
+	
+	  var doTransformation = function doTransformation(parse_tree) {
+	    if (parse_tree.operator == _this4._constants.kAND) {
+	      var ret = void 0;
+	      if (parse_tree.right.operator == _this4._constants.kOR) {
+	        var old_left = parse_tree.left;
+	        parse_tree.left = _this4._constructAND(old_left, parse_tree.right.left);
+	        parse_tree.right = _this4._constructAND(old_left, parse_tree.right.right);
+	        parse_tree.operator = _this4._constants.kOR;
+	        ret = true;
+	      } else if (parse_tree.left.operator == _this4._constants.kOR) {
+	        var old_right = parse_tree.right;
+	        parse_tree.right = _this4._constructAND(parse_tree.left.right, old_right);
+	        parse_tree.left = _this4._constructAND(parse_tree.left.left, old_right);
+	        parse_tree.operator = _this4._constants.kOR;
+	        ret = true;
+	      }
+	      var ret1 = doTransformation(parse_tree.left);
+	      var ret2 = doTransformation(parse_tree.right);
+	      return ret || ret1 || ret2;
+	    } else if (parse_tree.operator == _this4._constants.kOR) {
+	      var _ret2 = doTransformation(parse_tree.left);
+	      var _ret3 = doTransformation(parse_tree.right);
+	      return _ret2 || _ret3;
 	    }
-	    this._pushDownAnds(parse_tree.left);
-	    this._pushDownAnds(parse_tree.right);
-	  } else if (parse_tree.operator == this._constants.kOR) {
-	    this._pushDownAnds(parse_tree.left);
-	    this._pushDownAnds(parse_tree.right);
-	  }
-	  // Negations and terminals are terminating cases
+	    return false;
+	    // Negations and terminals are terminating cases 
+	  };
+	
+	  while (doTransformation(parse_tree)) {}
 	};
 	
 	// Get all positive and negative variables
@@ -1726,33 +2005,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // This expression should be parsable (i.e. have &&, ||, etc.)
 	  // regexes / assignments should be generated using ccBooleanAnalysis._getRegexes.
 	  // This function applies those regexes to an expression.
-	  var _iteratorNormalCompletion9 = true;
-	  var _didIteratorError9 = false;
-	  var _iteratorError9 = undefined;
+	  var _iteratorNormalCompletion10 = true;
+	  var _didIteratorError10 = false;
+	  var _iteratorError10 = undefined;
 	
 	  try {
 	    var _loop2 = function _loop2() {
-	      var regex = _step9.value;
+	      var regex = _step10.value;
 	
 	      parsable_expression = parsable_expression.replace(regex[0], function (a, v1, id, v2) {
 	        return (v1 || "") + regex[1] + (v2 || "");
 	      });
 	    };
 	
-	    for (var _iterator9 = regexes[Symbol.iterator](), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
+	    for (var _iterator10 = regexes[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
 	      _loop2();
 	    }
 	  } catch (err) {
-	    _didIteratorError9 = true;
-	    _iteratorError9 = err;
+	    _didIteratorError10 = true;
+	    _iteratorError10 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion9 && _iterator9.return) {
-	        _iterator9.return();
+	      if (!_iteratorNormalCompletion10 && _iterator10.return) {
+	        _iterator10.return();
 	      }
 	    } finally {
-	      if (_didIteratorError9) {
-	        throw _iteratorError9;
+	      if (_didIteratorError10) {
+	        throw _iteratorError10;
 	      }
 	    }
 	  }
@@ -1788,29 +2067,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	    new_assignments[k] = statics[k];
 	  };
 	
-	  var _iteratorNormalCompletion10 = true;
-	  var _didIteratorError10 = false;
-	  var _iteratorError10 = undefined;
+	  var _iteratorNormalCompletion11 = true;
+	  var _didIteratorError11 = false;
+	  var _iteratorError11 = undefined;
 	
 	  try {
-	    for (var _iterator10 = equations[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
-	      var equation = _step10.value;
+	    for (var _iterator11 = equations[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
+	      var equation = _step11.value;
 	
 	      var sides = equation.split('=');
 	      new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
 	    }
 	    //     transitions.push([assignments, new_assignments]);
 	  } catch (err) {
-	    _didIteratorError10 = true;
-	    _iteratorError10 = err;
+	    _didIteratorError11 = true;
+	    _iteratorError11 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion10 && _iterator10.return) {
-	        _iterator10.return();
+	      if (!_iteratorNormalCompletion11 && _iterator11.return) {
+	        _iterator11.return();
 	      }
 	    } finally {
-	      if (_didIteratorError10) {
-	        throw _iteratorError10;
+	      if (_didIteratorError11) {
+	        throw _iteratorError11;
 	      }
 	    }
 	  }
@@ -1836,7 +2115,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	//Get truth table for equation
 	ccBooleanAnalysis.getTruthTable = function (equation) {
-	  var _this = this;
+	  var _this5 = this;
 	
 	  var terms = {};
 	  equation.replace(/[$A-Z_][0-9A-Z_$]*/gi, function (id) {
@@ -1852,7 +2131,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    terms.forEach(function (t, j) {
 	      assignments[t] = settings[j] = i >> j & 1 ? true : false;
 	    });
-	    settings[terms.length] = _this._evaluateState(equation, _this._getRegexes(assignments));
+	    settings[terms.length] = _this5._evaluateState(equation, _this5._getRegexes(assignments));
 	    ret.push(settings);
 	  };
 	
@@ -2162,8 +2441,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // This way, we can determine that we are at a fixed point a priori without
 	  // actually confirming this (saves O(N) time).
 	
-	  for (var _i2 = 0; _i2 < constant_term_pos.length; _i2++) {
-	    var _term3 = constant_term_pos[_i2];
+	  for (var _i = 0; _i < constant_term_pos.length; _i++) {
+	    var _term3 = constant_term_pos[_i];
 	    var dependencies = depends_on[_term3]; // A = B AND C ->>>>> A depends on B. A shows up in dependencies.
 	    for (var _j4 = 0; _j4 < dependencies.length; _j4++) {
 	      var dependency = dependencies[_j4];
@@ -2189,8 +2468,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  // Basically same code for negatives
-	  for (var _i3 = 0; _i3 < constant_term_neg.length; _i3++) {
-	    var _term4 = constant_term_neg[_i3];
+	  for (var _i2 = 0; _i2 < constant_term_neg.length; _i2++) {
+	    var _term4 = constant_term_neg[_i2];
 	    var _dependencies = depends_on[_term4];
 	    for (var _j5 = 0; _j5 < _dependencies.length; _j5++) {
 	      var _dependency = _dependencies[_j5];

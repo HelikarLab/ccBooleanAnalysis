@@ -117,9 +117,11 @@
          positive_holder.data.push(parse_tree.name);
        } else if (parse_tree.type == ccBooleanAnalysis._constants.kUnaryExpression) {
          negative_holder.data.push(parse_tree.argument.name);
-       } else {
+       } else if (parse_tree.operator == ccBooleanAnalysis._constants.kAND) {
         iterateAndTree(positive_holder, negative_holder, parse_tree.left);
         iterateAndTree(positive_holder, negative_holder, parse_tree.right);
+       }else{
+         throw new Error("UNREACHABLE");
        }
      };
 
@@ -152,27 +154,14 @@
 
      // Convert parse tree format to DNF
      const parse_tree = this.getParseTree(s);
-/*     console.log("PARSE TREE");
-     const formula1 = formulaToStr(parse_tree);
-     console.log(formulaToStr(parse_tree));
-*/
      this._convertToNegationForm(parse_tree);
 
      this._pushDownAnds(parse_tree);
-/*
-     console.log("CONVERT TO NEGATION 2");
-     const formula2 = formulaToStr(parse_tree);
-     console.log(formulaToStr(parse_tree));
-     console.log(formulaToReadable(parse_tree).join('\n'));
-     console.log("EQUALS "+this.compareBooleansSAT(formula1, formula2));
-*/
+
      // Main Logic
      let conjuctions = {data: []};
      iterateOrTree(conjuctions, parse_tree);
-/*
-     console.log("CONJUNCTIONS");
-     console.log(JSON.stringify(conjuctions, null, 2));
-*/
+
      for (var i = 0; i < conjuctions.data.length; i++) {
        let conjuction_a = conjuctions.data[i];
 
@@ -195,60 +184,61 @@
      }
 
      const conjuctions_hashtable = {};
-     for (let i = 0; i < conjuctions.data.length; i++) {
-       const conjuction = conjuctions.data[i];
-       const key = this._get_union(conjuction[0], conjuction[1]).join('');
+     const deepCopy = (e) => JSON.parse(JSON.stringify(e));
 
-       let no_collision = true;
-       if (key in conjuctions_hashtable) {
-         const collisions = conjuctions_hashtable[key];
-         for (let j = 0; j < collisions.length; j++) {
-           const collision = collisions[j];
+     conjuctions.data.forEach(conjuction => {
+      const key = this._get_union(conjuction[0], conjuction[1]).join('');
 
-           // heuristic to avoid taking intersection in every case
-           const collision_has_neg = ((collision[0].length == conjuction[0].length - 1) && (collision[1].length == conjuction[1].length + 1));
-           const conjuction_has_neg = ((collision[0].length == conjuction[0].length + 1) && (collision[1].length == conjuction[1].length - 1));
-           let conjuction_a, conjuction_b;
-           if (collision_has_neg || conjuction_has_neg) {
-             if (collision_has_neg) {
-               conjuction_a = conjuction.slice();
-               conjuction_b = collision.slice();
-             } else {
-               conjuction_a = collision.slice();
-               conjuction_b = conjuction.slice();
-             }
+      let no_collision = true;
+      if (key in conjuctions_hashtable) {
+        const collisions = conjuctions_hashtable[key];
+        for (let j = 0; j < collisions.length; j++) {
+          const collision = collisions[j];
 
-             // get and remove this intersection
-             const intersection = [this._remove_intersection(conjuction_a[0], conjuction_b[0]), this._remove_intersection(conjuction_a[1],   conjuction_b[1])];
+          // heuristic to avoid taking intersection in every case
+          const collision_has_neg = ((collision[0].length == conjuction[0].length - 1) && (collision[1].length == conjuction[1].length + 1));
+          const conjuction_has_neg = ((collision[0].length == conjuction[0].length + 1) && (collision[1].length == conjuction[1].length - 1));
+          let conjuction_a, conjuction_b;
 
-             // confirm that the only difference is a term switched from pos to neg
-             if (conjuction_a[0].length == 1 && conjuction_a[1].length === 0 && conjuction_b[1].length == 1 && conjuction_b[0].length === 0 &&   conjuction_a[0][0] ==  conjuction_b[1][0]) {
-               no_collision = false; // mark that we've had a collision
+          if (collision_has_neg || conjuction_has_neg) {
+            if (collision_has_neg) {
+              conjuction_a = deepCopy(conjuction);
+              conjuction_b = deepCopy(collision);
+            } else {
+              conjuction_a = deepCopy(collision);
+              conjuction_b = deepCopy(conjuction);
+            }
 
-               // remove the collision
-               conjuctions_hashtable[key].splice(j, 1);
-               j--;
+            // get and remove this intersection
+            const intersection = [this._remove_intersection(conjuction_a[0], conjuction_b[0]), this._remove_intersection(conjuction_a[1],   conjuction_b[1])];
 
-               const new_key = this._get_union(intersection[0], intersection[1]).join('');
-               if (new_key in conjuctions_hashtable) {
-                 conjuctions_hashtable[new_key].push(intersection);
-               } else {
-                 conjuctions_hashtable[new_key] = [intersection];
-               }
-             }
-           }
-         }
+
+            // confirm that the only difference is a term switched from pos to neg
+            if (conjuction_a[0].length == 1 && conjuction_a[1].length === 0 && conjuction_b[1].length == 1 && conjuction_b[0].length === 0 &&   conjuction_a[0][0] ==  conjuction_b[1][0]) {
+              no_collision = false; // mark that we've had a collision
+
+              // remove the collision
+              conjuctions_hashtable[key].splice(j, 1);
+              j--;
+
+              const new_key = this._get_union(intersection[0], intersection[1]).join('');
+              if (new_key in conjuctions_hashtable) {
+                conjuctions_hashtable[new_key].push(intersection);
+              } else {
+                conjuctions_hashtable[new_key] = [intersection];
+              }
+            }
+          }
+        }
+      }
+      if (no_collision) {
+       if (!(key in conjuctions_hashtable)) {
+          conjuctions_hashtable[key] = [conjuction];
+        } else {
+          conjuctions_hashtable[key].push(conjuction);
+        }
        }
-       if (no_collision) {
-         if (!(key in conjuctions_hashtable)) {
-           conjuctions_hashtable[key] = [conjuction];
-         } else {
-           conjuctions_hashtable[key].push(conjuction);
-         }
-
-       }
-     }
-
+    });
      return conjuctions_hashtable;
    };
 
@@ -771,6 +761,7 @@
    
    */
    let getRegulators = parse_tree => {
+    
     const objEach = (o, f) => {
         for(var k in o) f(o[k],k);
     }
@@ -944,6 +935,14 @@
       }
     }
 
+    const removeConditionsWithoutNoComponentsAndSubConditions = (regulator) => {
+      if(regulator.conditions)
+        regulator.conditions = regulator.conditions.filter( condition => condition.components.length || (condition.conditions || []).length );
+    }
+
+    objEach(positive_regulators, removeConditionsWithoutNoComponentsAndSubConditions);
+    objEach(negative_regulators, removeConditionsWithoutNoComponentsAndSubConditions);
+
     objEach(positive_regulators, addRegulatorToComponentMap);
     objEach(negative_regulators, addRegulatorToComponentMap);
 
@@ -976,23 +975,8 @@
         return inters;
     });
 
-    console.log("POSITIVE_REGULATORS");
-    console.log(JSON.stringify(transformReferences(
-      objMap(positive_regulators, (e) => {
-        return e.value;
-      })
-      ),null,2));
-
-
-    console.log("can negatives");
-    console.log(canNegatives);
-
-    console.log("END");
-
-    let step = 0;
-
     //find negative regulators ( basically by groupping of subconditions )
-    while(true){
+    while(false){
         let occurences = {};
         //count occurences negative components inside positives
         objEach(canNegatives, a => a.forEach(({name:v})=>{
@@ -1051,8 +1035,6 @@
             }
         });
     });
-
-
 
 
     //transform regulators which have condition without components but this condition have subconditions with components to conditions
@@ -1193,9 +1175,7 @@
         return r;
     };
 
-    let dnf = this.getDNFObjectEncoding(s);
-    let olddnf = dnf;
-
+    let dnf = [];
     let keys = getIdentifiersFromTree(this.getParseTree(s));
     let regexes = this._getRegexes(keys);
     let absentState = false;
@@ -1208,7 +1188,7 @@
     let tree;
     //check for absent state
     if(this._evaluateState(s, regexes.map(e=>[e[0], false]))){
-      let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join('+')+')')
+      let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join(' + ')+')')
       absentState = true;
       dnf = newdnf;
     }
@@ -1216,6 +1196,7 @@
 
     let newkeys = getKeys({},dnf);
     let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
+
     if(missing.length > 0){
         //extracting absent state does not remove any component from equation >> have to fill it with the missing values
         let newdnfarr = ccBooleanAnalysis._getValues(dnf);
@@ -1248,8 +1229,6 @@
     tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
-
-
 
     const { regulator,component } = getRegulators(tree);
     return {
