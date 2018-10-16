@@ -239,6 +239,7 @@
         }
        }
     });
+
      return conjuctions_hashtable;
    };
 
@@ -761,6 +762,8 @@
    
    */
    let getRegulators = parse_tree => {
+
+    console.log(formulaToReadable(parse_tree));
     
     const objEach = (o, f) => {
         for(var k in o) f(o[k],k);
@@ -1188,7 +1191,8 @@
     let tree;
     //check for absent state
     if(this._evaluateState(s, regexes.map(e=>[e[0], false]))){
-      let newdnf = this.getDNFObjectEncoding('('+s+')*('+Object.keys(keys).join(' + ')+')')
+      const news = '('+s+')*('+Object.keys(keys).join(' + ')+')';
+      let newdnf = this.getDNFObjectEncoding(news);
       absentState = true;
       dnf = newdnf;
     }
@@ -1230,7 +1234,11 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
+    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
+    console.log("COMPARE FINAL ", this.compareBooleansSAT(s, news));
+
     const { regulator,component } = getRegulators(tree);
+
     return {
        regulators : regulator,
        components : component,

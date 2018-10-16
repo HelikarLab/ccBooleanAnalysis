@@ -318,6 +318,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    }
 	  });
+	
 	  return conjuctions_hashtable;
 	};
 	
@@ -1018,6 +1019,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	var getRegulators = function getRegulators(parse_tree) {
 	
+	  console.log(formulaToReadable(parse_tree));
+	
 	  var objEach = function objEach(o, f) {
 	    for (var k in o) {
 	      f(o[k], k);
@@ -1544,7 +1547,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (this._evaluateState(s, regexes.map(function (e) {
 	    return [e[0], false];
 	  }))) {
-	    var newdnf = this.getDNFObjectEncoding('(' + s + ')*(' + Object.keys(keys).join(' + ') + ')');
+	    var _news = '(' + s + ')*(' + Object.keys(keys).join(' + ') + ')';
+	    var newdnf = this.getDNFObjectEncoding(_news);
 	    absentState = true;
 	    dnf = newdnf;
 	  }
@@ -1600,6 +1604,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  tree = dnfToJsep(dnf);
 	  this._convertToNegationForm(tree);
 	  this._pushDownAnds(tree);
+	
+	  var news = absentState ? formulaToStr(tree) + '+(' + Object.keys(getIdentifiersFromTree(tree)).map(function (e) {
+	    return '~' + e;
+	  }).join('*') + ')' : formulaToStr(tree);
+	  console.log("COMPARE FINAL ", this.compareBooleansSAT(s, news));
 	
 	  var _getRegulators = getRegulators(tree),
 	      regulator = _getRegulators.regulator,
