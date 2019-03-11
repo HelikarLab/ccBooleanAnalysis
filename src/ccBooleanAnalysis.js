@@ -763,8 +763,6 @@
    */
    let getRegulators = parse_tree => {
 
-    console.log(formulaToReadable(parse_tree));
-    
     const objEach = (o, f) => {
         for(var k in o) f(o[k],k);
     }
@@ -1178,7 +1176,7 @@
         return r;
     };
 
-    let dnf = [];
+    let dnf = this.getDNFObjectEncoding(s);
     let keys = getIdentifiersFromTree(this.getParseTree(s));
     let regexes = this._getRegexes(keys);
     let absentState = false;
@@ -1235,7 +1233,6 @@
     this._pushDownAnds(tree);
 
     const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
-    console.log("COMPARE FINAL ", this.compareBooleansSAT(s, news));
 
     const { regulator,component } = getRegulators(tree);
 
