@@ -1568,7 +1568,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    newdnfarr.sort(function (v1, v2) {
 	      return Math.max.apply(null, len(v2)) - Math.max.apply(null, len(v1));
 	    });
-	    if (newdnfarr.length) {
+	
+	    if (newdnfarr.length <= 0) {
+	      missing0 = missing.shift();
+	      newdnfarr = [[[//positive
+	      [missing0], []], [//negative
+	      [], [missing0]]]];
+	    }
+	
+	    if (missing.length > 0) {
 	      newdnfarr[0].sort(function (v1, v2) {
 	        return elsize(v2) - elsize(v1);
 	      });
@@ -1598,6 +1606,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    }
 	  }
+	
+	  console.log("new dnf");
+	  console.log(dnf);
 	
 	  tree = dnfToJsep(dnf);
 	  this._convertToNegationForm(tree);

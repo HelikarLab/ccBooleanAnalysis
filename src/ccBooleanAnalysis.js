@@ -1195,7 +1195,6 @@
       dnf = newdnf;
     }
 
-
     let newkeys = getKeys({},dnf);
     let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
 
@@ -1205,7 +1204,23 @@
         let elsize = e=>e[0].length+e[1].length;
         let len = (e) => e.map(elsize);
         newdnfarr.sort((v1,v2) => Math.max.apply(null,len(v2)) - Math.max.apply(null,len(v1)));
-        if(newdnfarr.length){
+
+        if(newdnfarr.length <= 0){
+          missing0 = missing.shift();
+          newdnfarr = [
+            [
+              [ //positive
+                [missing0], []
+              ],
+              [ //negative
+                [], [missing0]
+              ]
+            ]
+          ]
+        }
+
+
+        if(missing.length > 0){
             newdnfarr[0].sort((v1,v2) => elsize(v2)-elsize(v1));
             let orig = newdnfarr[0].shift();
 
@@ -1227,6 +1242,9 @@
             }
         }
     }
+
+    console.log("new dnf");
+    console.log(dnf);
 
     tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
