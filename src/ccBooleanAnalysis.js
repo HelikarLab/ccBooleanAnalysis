@@ -1243,9 +1243,6 @@
         }
     }
 
-    console.log("new dnf");
-    console.log(dnf);
-
     tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
