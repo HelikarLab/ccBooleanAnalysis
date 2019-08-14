@@ -1198,21 +1198,26 @@
     let newkeys = getKeys({},dnf);
     let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
 
-    //single negative regulator >> corner case :)
-    if(absentState && missing.length == 1 && Object.keys(keys).length == 1){
-      return {
-        regulators: {
-          '-2': {
-            component: '-1',
-            type: false //NEGATIVE
-          }
-        },
-        components: {
-          '-1': {
-            name: missing[0]
-          }
-        },
-        absentState: false
+    //only negative regulators >> corner case :)
+    if(absentState){
+      if(missing.length == Object.keys(keys).length){
+        let uid = 0;
+        const genId = () => (--uid)+"";
+        const components = missing.map((name) => ({name, _uid: genId()}));
+        const regulators = components.map(({_uid}) => ({component: _uid, type: false, _uid: genId()}));
+
+        const arr2Obj = (arr) => {
+          let ret = {};
+          arr.forEach(({_uid, ...rest}) => {
+            ret[_uid] = rest;
+          })
+          return ret;
+        }
+        return {
+          regulators: arr2Obj(regulators),
+          components: arr2Obj(components),
+          absentState: false
+        }
       }
     }
 
@@ -1264,8 +1269,6 @@
     tree = dnfToJsep(dnf);
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
-
-//    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
 
     const { regulator,component } = getRegulators(tree);
 
