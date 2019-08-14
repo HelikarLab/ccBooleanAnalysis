@@ -1198,6 +1198,24 @@
     let newkeys = getKeys({},dnf);
     let missing = Object.keys(keys).filter(k=>newkeys[k] === undefined);
 
+    //single negative regulator >> corner case :)
+    if(absentState && missing.length == 1 && Object.keys(keys).length == 1){
+      return {
+        regulators: {
+          '-2': {
+            component: '-1',
+            type: false //NEGATIVE
+          }
+        },
+        components: {
+          '-1': {
+            name: missing[0]
+          }
+        },
+        absentState: false
+      }
+    }
+
     if(missing.length > 0){
         //extracting absent state does not remove any component from equation >> have to fill it with the missing values
         let newdnfarr = ccBooleanAnalysis._getValues(dnf);
@@ -1216,7 +1234,7 @@
                 [], [missing0]
               ]
             ]
-          ]
+          ];
         }
 
 
@@ -1247,7 +1265,7 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
-    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
+//    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
 
     const { regulator,component } = getRegulators(tree);
 

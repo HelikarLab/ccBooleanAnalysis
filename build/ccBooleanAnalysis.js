@@ -1545,8 +1545,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (this._evaluateState(s, regexes.map(function (e) {
 	    return [e[0], false];
 	  }))) {
-	    var _news = '(' + s + ')*(' + Object.keys(keys).join(' + ') + ')';
-	    var newdnf = this.getDNFObjectEncoding(_news);
+	    var news = '(' + s + ')*(' + Object.keys(keys).join(' + ') + ')';
+	    var newdnf = this.getDNFObjectEncoding(news);
 	    absentState = true;
 	    dnf = newdnf;
 	  }
@@ -1555,6 +1555,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var missing = Object.keys(keys).filter(function (k) {
 	    return newkeys[k] === undefined;
 	  });
+	
+	  //single negative regulator >> corner case :)
+	  if (absentState && missing.length == 1 && Object.keys(keys).length == 1) {
+	    return {
+	      regulators: {
+	        '-2': {
+	          component: '-1',
+	          type: false //NEGATIVE
+	        }
+	      },
+	      components: {
+	        '-1': {
+	          name: missing[0]
+	        }
+	      },
+	      absentState: false
+	    };
+	  }
 	
 	  if (missing.length > 0) {
 	    //extracting absent state does not remove any component from equation >> have to fill it with the missing values
@@ -1611,9 +1629,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._convertToNegationForm(tree);
 	  this._pushDownAnds(tree);
 	
-	  var news = absentState ? formulaToStr(tree) + '+(' + Object.keys(getIdentifiersFromTree(tree)).map(function (e) {
-	    return '~' + e;
-	  }).join('*') + ')' : formulaToStr(tree);
+	  //    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
 	
 	  var _getRegulators = getRegulators(tree),
 	      regulator = _getRegulators.regulator,
