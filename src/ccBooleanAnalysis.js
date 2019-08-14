@@ -1206,7 +1206,7 @@
         newdnfarr.sort((v1,v2) => Math.max.apply(null,len(v2)) - Math.max.apply(null,len(v1)));
 
         if(newdnfarr.length <= 0){
-          missing0 = missing.shift();
+          const missing0 = missing.shift();
           newdnfarr = [
             [
               [ //positive
