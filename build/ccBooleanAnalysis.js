@@ -60,6 +60,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
+	function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+	
 	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
@@ -1556,22 +1558,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return newkeys[k] === undefined;
 	  });
 	
-	  //single negative regulator >> corner case :)
-	  if (absentState && missing.length == 1 && Object.keys(keys).length == 1) {
-	    return {
-	      regulators: {
-	        '-2': {
-	          component: '-1',
-	          type: false //NEGATIVE
-	        }
-	      },
-	      components: {
-	        '-1': {
-	          name: missing[0]
-	        }
-	      },
-	      absentState: false
-	    };
+	  //only negative regulators >> corner case :)
+	  if (absentState) {
+	    if (missing.length == Object.keys(keys).length) {
+	      var uid = 0;
+	      var genId = function genId() {
+	        return --uid + "";
+	      };
+	      var components = missing.map(function (name) {
+	        return { name: name, _uid: genId() };
+	      });
+	      var regulators = components.map(function (_ref10) {
+	        var _uid = _ref10._uid;
+	        return { component: _uid, type: false, _uid: genId() };
+	      });
+	
+	      var arr2Obj = function arr2Obj(arr) {
+	        var ret = {};
+	        arr.forEach(function (_ref11) {
+	          var _uid = _ref11._uid,
+	              rest = _objectWithoutProperties(_ref11, ['_uid']);
+	
+	          ret[_uid] = rest;
+	        });
+	        return ret;
+	      };
+	      return {
+	        regulators: arr2Obj(regulators),
+	        components: arr2Obj(components),
+	        absentState: false
+	      };
+	    }
 	  }
 	
 	  if (missing.length > 0) {
@@ -1628,8 +1645,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  tree = dnfToJsep(dnf);
 	  this._convertToNegationForm(tree);
 	  this._pushDownAnds(tree);
-	
-	  //    const news = absentState ? formulaToStr(tree)+'+('+Object.keys(getIdentifiersFromTree(tree)).map(e=>'~'+e).join('*')+')' : formulaToStr(tree);
 	
 	  var _getRegulators = getRegulators(tree),
 	      regulator = _getRegulators.regulator,
