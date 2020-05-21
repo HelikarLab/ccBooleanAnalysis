@@ -31,6 +31,18 @@
     kIdentifier: "Identifier"
   };
 
+  ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__"
+
+  ccBooleanAnalysis._to_parsable_expression = s => {
+    s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/)
+      .map(i => i.replace(/\s/g, ''))
+      .map(i => i.replace(/^\d+/g, m => `${ccBooleanAnalysis._VARIABLE_PREFIXER}${m}`))
+      .map(i => i.replace(/\d+$/g, m => `${m}${ccBooleanAnalysis._VARIABLE_PREFIXER}`))
+      .join(" ");
+
+    return s;
+  }
+
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////      Parse Boolean Tree
@@ -53,13 +65,15 @@
     }
 
     s = s.replace(/([A-Z][a-z][0-9])+(\+|\*|~)/, '_');
+    
+    s = ccBooleanAnalysis._to_parsable_expression(s);
+    
 
     // find = '\b(AND)\b';
     // re = new RegExp(find, 'g');
 
     // find = '(OR)';
     // re = new RegExp(find, 'g');
-
     return jsep(s);
   };
 
@@ -1270,7 +1284,20 @@
     this._convertToNegationForm(tree);
     this._pushDownAnds(tree);
 
-    const { regulator,component } = getRegulators(tree);
+    let { regulator,component } = getRegulators(tree);
+    
+    const _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g")
+    const _sanitize_name = c => {
+      c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+      return c;
+    }
+
+    component = Object
+      .keys(component)
+      .reduce((prev, next) => ({
+        ...prev,
+        [next]: _sanitize_name(component[next])
+      }), { })
 
     return {
        regulators : regulator,
@@ -1651,7 +1678,8 @@
      };
 
      const replFun = (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||"");
-     let parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
+     let parsable_expression = ccBooleanAnalysis._to_parsable_expression(expression);
+     parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
                                         .replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 
      // insert the assignments into the parsable_expression

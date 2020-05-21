@@ -56,9 +56,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+	
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 	
 	function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
 	
@@ -101,6 +105,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	  kIdentifier: "Identifier"
 	};
 	
+	ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__";
+	
+	ccBooleanAnalysis._to_parsable_expression = function (s) {
+	  s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (i) {
+	    return i.replace(/\s/g, '');
+	  }).map(function (i) {
+	    return i.replace(/^\d+/g, function (m) {
+	      return '' + ccBooleanAnalysis._VARIABLE_PREFIXER + m;
+	    });
+	  }).map(function (i) {
+	    return i.replace(/\d+$/g, function (m) {
+	      return '' + m + ccBooleanAnalysis._VARIABLE_PREFIXER;
+	    });
+	  }).join(" ");
+	
+	  return s;
+	};
+	
 	////////////////////////////////////////
 	////////////////////////////////////////
 	////      Parse Boolean Tree
@@ -124,12 +146,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  s = s.replace(/([A-Z][a-z][0-9])+(\+|\*|~)/, '_');
 	
+	  s = ccBooleanAnalysis._to_parsable_expression(s);
+	
 	  // find = '\b(AND)\b';
 	  // re = new RegExp(find, 'g');
 	
 	  // find = '(OR)';
 	  // re = new RegExp(find, 'g');
-	
 	  return jsep(s);
 	};
 	
@@ -1650,6 +1673,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      regulator = _getRegulators.regulator,
 	      component = _getRegulators.component;
 	
+	  var _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g");
+	  var _sanitize_name = function _sanitize_name(c) {
+	    c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+	    return c;
+	  };
+	
+	  component = Object.keys(component).reduce(function (prev, next) {
+	    return _extends({}, prev, _defineProperty({}, next, _sanitize_name(component[next])));
+	  }, {});
+	
 	  return {
 	    regulators: regulator,
 	    components: component,
@@ -2037,7 +2070,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var replFun = function replFun(a, v1, matched, v2) {
 	    return (v1 || "") + mapObj[matched] + (v2 || "");
 	  };
-	  var parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
+	  var parsable_expression = ccBooleanAnalysis._to_parsable_expression(expression);
+	  parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 	
 	  // insert the assignments into the parsable_expression
 	  parsable_expression = this._applyRegexes(parsable_expression, regexes);
