@@ -34,11 +34,33 @@
   ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__"
 
   ccBooleanAnalysis._to_parsable_expression = s => {
-    s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/)
+    let replaceAnd = replaceOr = false;
+    
+    if ( s.includes("&&") ) {
+      replaceAnd = true;
+      s = s.replace(/&&/g, "*");
+    }
+
+    if ( s.includes("||") ) {
+      replaceOr = true;
+      s = s.replace(/\|\|/g,  "+");
+    }
+
+    s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)).flat()
       .map(i => i.replace(/\s/g, ''))
       .map(i => i.replace(/^\d+/g, m => `${ccBooleanAnalysis._VARIABLE_PREFIXER}${m}`))
       .map(i => i.replace(/\d+$/g, m => `${m}${ccBooleanAnalysis._VARIABLE_PREFIXER}`))
       .join(" ");
+
+    if ( replaceAnd ) {
+      s = s.replace(/\*/g, "&&");
+    }
+
+    if ( replaceOr ) {
+      s = s.replace(/\+/g, "||")
+    }
+
+    console.log(s)
 
     return s;
   }
@@ -74,6 +96,7 @@
 
     // find = '(OR)';
     // re = new RegExp(find, 'g');
+
     return jsep(s);
   };
 
@@ -1674,16 +1697,24 @@
        '+':'||',
        '*':'&&',
        'AND':'&&',
-       '~': '!'
+       '~': '!',
+       'or':'||',
+       'and':'&&'
      };
 
      const replFun = (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||"");
-     let parsable_expression = ccBooleanAnalysis._to_parsable_expression(expression);
+    //  console.log("expression", expression)
+     let parsable_expression = expression;
+    //  console.log("pe", parsable_expression);
      parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
                                         .replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 
+     console.log("FOO", parsable_expression);
+     parsable_expression = ccBooleanAnalysis._to_parsable_expression(parsable_expression);
      // insert the assignments into the parsable_expression
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
+
+     console.log("PARSED", parsable_expression);
 
      /*jshint -W061 */
      return eval(parsable_expression)?1:0;

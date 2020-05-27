@@ -108,7 +108,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__";
 	
 	ccBooleanAnalysis._to_parsable_expression = function (s) {
-	  s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (i) {
+	  var replaceAnd = replaceOr = false;
+	
+	  if (s.includes("&&")) {
+	    replaceAnd = true;
+	    s = s.replace(/&&/g, "*");
+	  }
+	
+	  if (s.includes("||")) {
+	    replaceOr = true;
+	    s = s.replace(/\|\|/g, "+");
+	  }
+	
+	  s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (s) {
+	    return s.split(/(&amp;){2}/g);
+	  }).flat().map(function (i) {
 	    return i.replace(/\s/g, '');
 	  }).map(function (i) {
 	    return i.replace(/^\d+/g, function (m) {
@@ -119,6 +133,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return '' + m + ccBooleanAnalysis._VARIABLE_PREFIXER;
 	    });
 	  }).join(" ");
+	
+	  if (replaceAnd) {
+	    s = s.replace(/\*/g, "&&");
+	  }
+	
+	  if (replaceOr) {
+	    s = s.replace(/\+/g, "||");
+	  }
+	
+	  console.log(s);
 	
 	  return s;
 	};
@@ -153,6 +177,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  // find = '(OR)';
 	  // re = new RegExp(find, 'g');
+	
 	  return jsep(s);
 	};
 	
@@ -2064,17 +2089,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	    '+': '||',
 	    '*': '&&',
 	    'AND': '&&',
-	    '~': '!'
+	    '~': '!',
+	    'or': '||',
+	    'and': '&&'
 	  };
 	
 	  var replFun = function replFun(a, v1, matched, v2) {
 	    return (v1 || "") + mapObj[matched] + (v2 || "");
 	  };
-	  var parsable_expression = ccBooleanAnalysis._to_parsable_expression(expression);
+	  //  console.log("expression", expression)
+	  var parsable_expression = expression;
+	  //  console.log("pe", parsable_expression);
 	  parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 	
+	  console.log("FOO", parsable_expression);
+	  parsable_expression = ccBooleanAnalysis._to_parsable_expression(parsable_expression);
 	  // insert the assignments into the parsable_expression
 	  parsable_expression = this._applyRegexes(parsable_expression, regexes);
+	
+	  console.log("PARSED", parsable_expression);
 	
 	  /*jshint -W061 */
 	  return eval(parsable_expression) ? 1 : 0;
