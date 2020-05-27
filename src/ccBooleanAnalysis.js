@@ -61,8 +61,6 @@
       s = s.replace(/\+/g, "||")
     }
 
-    console.log(s)
-
     return s;
   }
 
@@ -1710,12 +1708,9 @@
      parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
                                         .replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 
-     console.log("FOO", parsable_expression);
      parsable_expression = ccBooleanAnalysis._to_parsable_expression(parsable_expression);
      // insert the assignments into the parsable_expression
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
-
-     console.log("PARSED", parsable_expression);
 
      /*jshint -W061 */
      return eval(parsable_expression)?1:0;
