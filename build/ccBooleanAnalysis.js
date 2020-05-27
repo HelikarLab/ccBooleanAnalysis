@@ -108,7 +108,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__";
 	
 	ccBooleanAnalysis._to_parsable_expression = function (s) {
-	  var replaceAnd = replaceOr = false;
+	  var replaceAnd = false;
+	  var replaceOr = false;
 	
 	  if (s.includes("&&")) {
 	    replaceAnd = true;

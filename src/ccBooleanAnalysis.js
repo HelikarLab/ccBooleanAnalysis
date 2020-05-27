@@ -34,7 +34,8 @@
   ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__"
 
   ccBooleanAnalysis._to_parsable_expression = s => {
-    let replaceAnd = replaceOr = false;
+    let replaceAnd = false;
+    let replaceOr = false;
     
     if ( s.includes("&&") ) {
       replaceAnd = true;
