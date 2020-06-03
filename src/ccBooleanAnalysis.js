@@ -1328,6 +1328,95 @@
      };
    };
 
+   // helpers for fromBiologicalConstructs
+   const getName = (constructs, id) => {
+    for( let key of Object.keys(constructs.components) ) {
+      if( key === id ) return constructs.components[key].name;
+    }
+    return null;
+  };
+  
+  const constructConditionStatement = (constructs, {
+    componentRelation = false,
+    conditionRelation = false,
+    state = false,
+    type = false,
+    components,
+    conditions = []
+  }) => {
+    const relation = componentRelation ? '*' : '+';
+    const condRelation = conditionRelation ? '*' : '+';
+    const invertComponents = !state;
+    const invertWhole = !type;
+    const comps = components.map(component => `${invertComponents ? '~' : ''}${getName(constructs, component)}`).join(relation);
+    const conds = conditions.map(condition => {
+      let construct = constructConditionStatement(constructs, condition);
+      return construct;
+    }).join(condRelation);
+    return `${invertWhole ? '~' : ''}((${comps})${conds !== '' ? '*(' + conds + ')' : ''})`;
+  };
+  
+  const constructRegulatorStatement = (constructs, {
+    conditionRelation = false,
+    type = false,
+    component,
+    conditions = []
+  }) => {
+    if( conditions.length === 0 ) {
+      return (!type ? '~' : '') + getName(constructs, component);
+    } else {
+      const relation = conditionRelation ? '*' : '+';
+      return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(condition => constructConditionStatement(constructs, condition)).join(relation) + ')';
+    }
+  };
+  
+  const deepCopy = obj => JSON.parse(JSON.stringify(obj));
+  
+  const obj2array = obj => {
+    let arr = [];
+    for( let key of Object.keys(obj) ) {
+      let objUpd = obj[key];
+      objUpd._key = key;
+      arr.push(objUpd);
+    }
+    return arr;
+  };
+  
+  /**
+   * @method ccBooleanAnalysis.fromBiologicalConstructs
+   * @param {obj} constructs A biological constructs object, like one returned from ccBooleanAnalysis.getBiologicalConstructs
+   * @return {string} A boolean expression emulating the regulatory mechanism of the biological constructs.
+   */
+  ccBooleanAnalysis.fromBiologicalConstructs = (constructs) => {
+    // first, deep copy constructs and reformat the object for uniformity across the layers
+    let newConstructs = deepCopy(constructs);
+  
+    let regulators = obj2array(newConstructs.regulators);
+  
+    for( let regulator of regulators ) {
+      for( let condition of (regulator.conditions || []) ) {
+        condition.conditionRelation = condition.subConditionRelation;
+        delete condition.subConditionRelation;
+      }
+    }
+  
+    let statements = {};
+    for( let regulator of regulators ) {
+      statements[regulator._key] = constructRegulatorStatement(constructs, regulator);
+    }
+  
+    let finalStatements = [];
+    for( let regulator of regulators ) {
+      if( regulator.type === true && regulator.dominants ) {
+        finalStatements.push('(' + statements[regulator._key] + regulator.dominants.map(dominant => ' * ~(' + statements[dominant] + ')') + ')');
+      } else {
+        finalStatements.push('(' + statements[regulator._key] + ')');
+      }
+    }
+  
+    return finalStatements.join('+');
+  };
+
    ////////////////////////////////////////
    ////////////////////////////////////////
    ////     Misc Helpers
