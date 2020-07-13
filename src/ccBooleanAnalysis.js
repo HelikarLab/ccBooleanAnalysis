@@ -1249,9 +1249,24 @@
           })
           return ret;
         }
+
+        const _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g")
+        const _sanitize_name = c => {
+          c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+          return c;
+        };
+
+        let component = arr2Obj(components);
+        component = Object
+          .keys(component)
+          .reduce((prev, next) => ({
+            ...prev,
+            [next]: _sanitize_name(component[next])
+          }), { })
+
         return {
           regulators: arr2Obj(regulators),
-          components: arr2Obj(components),
+          components: component,
           absentState: false
         }
       }
