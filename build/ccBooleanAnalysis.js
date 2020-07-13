@@ -1630,9 +1630,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	        return ret;
 	      };
+	
+	      var _VARIABLE_PREFIX_REGEX2 = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g");
+	      var _sanitize_name2 = function _sanitize_name2(c) {
+	        c.name = c.name.replace(_VARIABLE_PREFIX_REGEX2, "");
+	        return c;
+	      };
+	
+	      var _component = arr2Obj(components);
+	      _component = Object.keys(_component).reduce(function (prev, next) {
+	        return _extends({}, prev, _defineProperty({}, next, _sanitize_name2(_component[next])));
+	      }, {});
+	
 	      return {
 	        regulators: arr2Obj(regulators),
-	        components: arr2Obj(components),
+	        components: _component,
 	        absentState: false
 	      };
 	    }
