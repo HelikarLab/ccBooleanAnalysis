@@ -1531,7 +1531,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 	
 	  var dnf = this.getDNFObjectEncoding(s);
-	  var keys = getIdentifiersFromTree(this.getParseTree(s));
+	  var origintree = this.getParseTree(s);
+	  var keys = getIdentifiersFromTree(origintree);
 	  var regexes = this._getRegexes(keys);
 	  var absentState = false;
 	
@@ -1643,18 +1644,286 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  tree = dnfToJsep(dnf);
-	  this._convertToNegationForm(tree);
-	  this._pushDownAnds(tree);
 	
-	  var _getRegulators = getRegulators(tree),
-	      regulator = _getRegulators.regulator,
-	      component = _getRegulators.component;
+	  var regulator = {};
+	  var component = {};
+	
+	  if (!tree || this.compareBooleansSAT(origintree, Logic.FALSE)) {
+	    //dnf is empty >> expression is FALSE
+	    if (Object.keys(keys).length > 0) {
+	      var id = -1;
+	      var newId = function newId() {
+	        return id--;
+	      };
+	
+	      var _regulator = {};
+	      var _component = {};
+	
+	      Object.keys(keys).forEach(function (key) {
+	        var compId = newId();
+	
+	        _component[compId] = {
+	          name: key
+	        };
+	
+	        var reg1Id = newId();
+	        var reg2Id = newId();
+	        _regulator[reg1Id] = {
+	          "component": compId + "", "type": true, "conditionRelation": false, "conditions": []
+	        };
+	        _regulator[reg2Id] = {
+	          "component": compId + "", "type": false, "conditionRelation": false, "conditions": [], dominants: [reg1Id + ""]
+	        };
+	      });
+	    } else {
+	      throw new Error("UNREACHABLE");
+	    }
+	  } else {
+	    this._convertToNegationForm(tree);
+	    this._pushDownAnds(tree);
+	
+	    var ret = getRegulators(tree);
+	    regulator = ret.regulator;
+	    component = ret.component;
+	  }
 	
 	  return {
 	    regulators: regulator,
 	    components: component,
 	    absentState: absentState
 	  };
+	};
+	
+	// helpers for fromBiologicalConstructs
+	var getName = function getName(constructs, id) {
+	  var _iteratorNormalCompletion10 = true;
+	  var _didIteratorError10 = false;
+	  var _iteratorError10 = undefined;
+	
+	  try {
+	    for (var _iterator10 = Object.keys(constructs.components)[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
+	      var key = _step10.value;
+	
+	      if (key === id) return constructs.components[key].name;
+	    }
+	  } catch (err) {
+	    _didIteratorError10 = true;
+	    _iteratorError10 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion10 && _iterator10.return) {
+	        _iterator10.return();
+	      }
+	    } finally {
+	      if (_didIteratorError10) {
+	        throw _iteratorError10;
+	      }
+	    }
+	  }
+	
+	  return null;
+	};
+	
+	var constructConditionStatement = function constructConditionStatement(constructs, _ref12) {
+	  var _ref12$componentRelat = _ref12.componentRelation,
+	      componentRelation = _ref12$componentRelat === undefined ? false : _ref12$componentRelat,
+	      _ref12$conditionRelat = _ref12.conditionRelation,
+	      conditionRelation = _ref12$conditionRelat === undefined ? false : _ref12$conditionRelat,
+	      _ref12$state = _ref12.state,
+	      state = _ref12$state === undefined ? false : _ref12$state,
+	      _ref12$type = _ref12.type,
+	      type = _ref12$type === undefined ? false : _ref12$type,
+	      components = _ref12.components,
+	      _ref12$conditions = _ref12.conditions,
+	      conditions = _ref12$conditions === undefined ? [] : _ref12$conditions;
+	
+	  var relation = componentRelation ? '*' : '+';
+	  var condRelation = conditionRelation ? '*' : '+';
+	  var invertComponents = !state;
+	  var invertWhole = !type;
+	  var comps = components.map(function (component) {
+	    return '' + (invertComponents ? '~' : '') + getName(constructs, component);
+	  }).join(relation);
+	  var conds = conditions.map(function (condition) {
+	    var construct = constructConditionStatement(constructs, condition);
+	    return construct;
+	  }).join(condRelation);
+	  return (invertWhole ? '~' : '') + '((' + comps + ')' + (conds !== '' ? '*(' + conds + ')' : '') + ')';
+	};
+	
+	var constructRegulatorStatement = function constructRegulatorStatement(constructs, _ref13) {
+	  var _ref13$conditionRelat = _ref13.conditionRelation,
+	      conditionRelation = _ref13$conditionRelat === undefined ? false : _ref13$conditionRelat,
+	      _ref13$type = _ref13.type,
+	      type = _ref13$type === undefined ? false : _ref13$type,
+	      component = _ref13.component,
+	      _ref13$conditions = _ref13.conditions,
+	      conditions = _ref13$conditions === undefined ? [] : _ref13$conditions;
+	
+	  if (conditions.length === 0) {
+	    return (!type ? '~' : '') + getName(constructs, component);
+	  } else {
+	    var relation = conditionRelation ? '*' : '+';
+	    return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(function (condition) {
+	      return constructConditionStatement(constructs, condition);
+	    }).join(relation) + ')';
+	  }
+	};
+	
+	var deepCopy = function deepCopy(obj) {
+	  return JSON.parse(JSON.stringify(obj));
+	};
+	
+	var obj2array = function obj2array(obj) {
+	  var arr = [];
+	  var _iteratorNormalCompletion11 = true;
+	  var _didIteratorError11 = false;
+	  var _iteratorError11 = undefined;
+	
+	  try {
+	    for (var _iterator11 = Object.keys(obj)[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
+	      var key = _step11.value;
+	
+	      var objUpd = obj[key];
+	      objUpd._key = key;
+	      arr.push(objUpd);
+	    }
+	  } catch (err) {
+	    _didIteratorError11 = true;
+	    _iteratorError11 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion11 && _iterator11.return) {
+	        _iterator11.return();
+	      }
+	    } finally {
+	      if (_didIteratorError11) {
+	        throw _iteratorError11;
+	      }
+	    }
+	  }
+	
+	  return arr;
+	};
+	
+	/**
+	 * @method ccBooleanAnalysis.fromBiologicalConstructs
+	 * @param {obj} constructs A biological constructs object, like one returned from ccBooleanAnalysis.getBiologicalConstructs
+	 * @return {string} A boolean expression emulating the regulatory mechanism of the biological constructs.
+	 */
+	ccBooleanAnalysis.fromBiologicalConstructs = function (constructs) {
+	  // first, deep copy constructs and reformat the object for uniformity across the layers
+	  var newConstructs = deepCopy(constructs);
+	
+	  var regulators = obj2array(newConstructs.regulators);
+	
+	  var _iteratorNormalCompletion12 = true;
+	  var _didIteratorError12 = false;
+	  var _iteratorError12 = undefined;
+	
+	  try {
+	    for (var _iterator12 = regulators[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
+	      var regulator = _step12.value;
+	      var _iteratorNormalCompletion15 = true;
+	      var _didIteratorError15 = false;
+	      var _iteratorError15 = undefined;
+	
+	      try {
+	        for (var _iterator15 = (regulator.conditions || [])[Symbol.iterator](), _step15; !(_iteratorNormalCompletion15 = (_step15 = _iterator15.next()).done); _iteratorNormalCompletion15 = true) {
+	          var condition = _step15.value;
+	
+	          condition.conditionRelation = condition.subConditionRelation;
+	          delete condition.subConditionRelation;
+	        }
+	      } catch (err) {
+	        _didIteratorError15 = true;
+	        _iteratorError15 = err;
+	      } finally {
+	        try {
+	          if (!_iteratorNormalCompletion15 && _iterator15.return) {
+	            _iterator15.return();
+	          }
+	        } finally {
+	          if (_didIteratorError15) {
+	            throw _iteratorError15;
+	          }
+	        }
+	      }
+	    }
+	  } catch (err) {
+	    _didIteratorError12 = true;
+	    _iteratorError12 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion12 && _iterator12.return) {
+	        _iterator12.return();
+	      }
+	    } finally {
+	      if (_didIteratorError12) {
+	        throw _iteratorError12;
+	      }
+	    }
+	  }
+	
+	  var statements = {};
+	  var _iteratorNormalCompletion13 = true;
+	  var _didIteratorError13 = false;
+	  var _iteratorError13 = undefined;
+	
+	  try {
+	    for (var _iterator13 = regulators[Symbol.iterator](), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
+	      var _regulator2 = _step13.value;
+	
+	      statements[_regulator2._key] = constructRegulatorStatement(constructs, _regulator2);
+	    }
+	  } catch (err) {
+	    _didIteratorError13 = true;
+	    _iteratorError13 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion13 && _iterator13.return) {
+	        _iterator13.return();
+	      }
+	    } finally {
+	      if (_didIteratorError13) {
+	        throw _iteratorError13;
+	      }
+	    }
+	  }
+	
+	  var finalStatements = [];
+	  var _iteratorNormalCompletion14 = true;
+	  var _didIteratorError14 = false;
+	  var _iteratorError14 = undefined;
+	
+	  try {
+	    for (var _iterator14 = regulators[Symbol.iterator](), _step14; !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
+	      var _regulator3 = _step14.value;
+	
+	      if (_regulator3.type === true && _regulator3.dominants) {
+	        finalStatements.push('(' + statements[_regulator3._key] + _regulator3.dominants.map(function (dominant) {
+	          return ' * ~(' + statements[dominant] + ')';
+	        }) + ')');
+	      } else {
+	        finalStatements.push('(' + statements[_regulator3._key] + ')');
+	      }
+	    }
+	  } catch (err) {
+	    _didIteratorError14 = true;
+	    _iteratorError14 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion14 && _iterator14.return) {
+	        _iterator14.return();
+	      }
+	    } finally {
+	      if (_didIteratorError14) {
+	        throw _iteratorError14;
+	      }
+	    }
+	  }
+	
+	  return finalStatements.join('+');
 	};
 	
 	////////////////////////////////////////
@@ -2050,33 +2319,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // This expression should be parsable (i.e. have &&, ||, etc.)
 	  // regexes / assignments should be generated using ccBooleanAnalysis._getRegexes.
 	  // This function applies those regexes to an expression.
-	  var _iteratorNormalCompletion10 = true;
-	  var _didIteratorError10 = false;
-	  var _iteratorError10 = undefined;
+	  var _iteratorNormalCompletion16 = true;
+	  var _didIteratorError16 = false;
+	  var _iteratorError16 = undefined;
 	
 	  try {
 	    var _loop2 = function _loop2() {
-	      var regex = _step10.value;
+	      var regex = _step16.value;
 	
 	      parsable_expression = parsable_expression.replace(regex[0], function (a, v1, id, v2) {
 	        return (v1 || "") + regex[1] + (v2 || "");
 	      });
 	    };
 	
-	    for (var _iterator10 = regexes[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
+	    for (var _iterator16 = regexes[Symbol.iterator](), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
 	      _loop2();
 	    }
 	  } catch (err) {
-	    _didIteratorError10 = true;
-	    _iteratorError10 = err;
+	    _didIteratorError16 = true;
+	    _iteratorError16 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion10 && _iterator10.return) {
-	        _iterator10.return();
+	      if (!_iteratorNormalCompletion16 && _iterator16.return) {
+	        _iterator16.return();
 	      }
 	    } finally {
-	      if (_didIteratorError10) {
-	        throw _iteratorError10;
+	      if (_didIteratorError16) {
+	        throw _iteratorError16;
 	      }
 	    }
 	  }
@@ -2112,29 +2381,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	    new_assignments[k] = statics[k];
 	  };
 	
-	  var _iteratorNormalCompletion11 = true;
-	  var _didIteratorError11 = false;
-	  var _iteratorError11 = undefined;
+	  var _iteratorNormalCompletion17 = true;
+	  var _didIteratorError17 = false;
+	  var _iteratorError17 = undefined;
 	
 	  try {
-	    for (var _iterator11 = equations[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
-	      var equation = _step11.value;
+	    for (var _iterator17 = equations[Symbol.iterator](), _step17; !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
+	      var equation = _step17.value;
 	
 	      var sides = equation.split('=');
 	      new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
 	    }
 	    //     transitions.push([assignments, new_assignments]);
 	  } catch (err) {
-	    _didIteratorError11 = true;
-	    _iteratorError11 = err;
+	    _didIteratorError17 = true;
+	    _iteratorError17 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion11 && _iterator11.return) {
-	        _iterator11.return();
+	      if (!_iteratorNormalCompletion17 && _iterator17.return) {
+	        _iterator17.return();
 	      }
 	    } finally {
-	      if (_didIteratorError11) {
-	        throw _iteratorError11;
+	      if (_didIteratorError17) {
+	        throw _iteratorError17;
 	      }
 	    }
 	  }
@@ -2306,11 +2575,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {boolean} Whether the two expressions are equivalent.
 	 */
 	ccBooleanAnalysis.compareBooleansSAT = function (s1, s2) {
-	  var pt1 = typeof s1 === 'string' ? this.getParseTree(s1) : s1;
-	  var pt2 = typeof s2 === 'string' ? this.getParseTree(s2) : s2;
+	  var _this6 = this;
 	
-	  var logic_formula1 = this._buildLogicFormula(pt1);
-	  var logic_formula2 = this._buildLogicFormula(pt2);
+	  var parseTree = function parseTree(s) {
+	    return s.length ? _this6.getParseTree(s) : Logic.FALSE;
+	  };
+	
+	  var pt1 = typeof s1 === 'string' ? parseTree(s1) : s1;
+	  var pt2 = typeof s2 === 'string' ? parseTree(s2) : s2;
+	
+	  var getFormula = function getFormula(formula) {
+	    if (formula === Logic.FALSE || formula === Logic.TRUE) return formula;
+	    return _this6._buildLogicFormula(formula);
+	  };
+	
+	  var logic_formula1 = getFormula(pt1);
+	  var logic_formula2 = getFormula(pt2);
 	
 	  var expression = Logic.xor(logic_formula1, logic_formula2);
 	  return !ccBooleanAnalysis._formulaSatisfiable(expression);

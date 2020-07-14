@@ -1176,8 +1176,9 @@
         return r;
     };
 
-    let dnf = this.getDNFObjectEncoding(s);
-    let keys = getIdentifiersFromTree(this.getParseTree(s));
+		let dnf = this.getDNFObjectEncoding(s);
+		const origintree = this.getParseTree(s);
+    let keys = getIdentifiersFromTree(origintree);
     let regexes = this._getRegexes(keys);
     let absentState = false;
 
@@ -1266,18 +1267,145 @@
         }
     }
 
-    tree = dnfToJsep(dnf);
-    this._convertToNegationForm(tree);
-    this._pushDownAnds(tree);
+		tree = dnfToJsep(dnf);
 
-    const { regulator,component } = getRegulators(tree);
+		let regulator = {};
+		let component = {};
 
+		if(!tree || this.compareBooleansSAT(origintree, Logic.FALSE)){
+			//dnf is empty >> expression is FALSE
+			if(Object.keys(keys).length > 0){
+				let id = -1;
+				const newId=() => id--;
+
+				let regulator = {};
+				let component = {};
+
+				Object.keys(keys).forEach((key) => {
+					const compId = newId();
+
+					component[compId] = {
+						name: key
+					};
+
+					const reg1Id =newId();
+					const reg2Id =newId();
+					regulator[reg1Id] = {
+						"component":compId+"","type":true,"conditionRelation":false,"conditions":[]
+					};
+					regulator[reg2Id] = {
+						"component":compId+"","type":false,"conditionRelation":false,"conditions":[], dominants: [reg1Id+""]
+					};
+
+				});
+
+			}else{
+				throw new Error("UNREACHABLE");
+			}
+		}else{
+			this._convertToNegationForm(tree);
+			this._pushDownAnds(tree);	
+
+			let ret = getRegulators(tree);
+			regulator = ret.regulator;
+			component = ret.component;
+		}
+		
     return {
        regulators : regulator,
        components : component,
        absentState
      };
-   };
+	 };
+	 
+    // helpers for fromBiologicalConstructs
+    const getName = (constructs, id) => {
+      for( let key of Object.keys(constructs.components) ) {
+        if( key === id ) return constructs.components[key].name;
+      }
+      return null;
+    };
+  
+    const constructConditionStatement = (constructs, {
+      componentRelation = false,
+      conditionRelation = false,
+      state = false,
+      type = false,
+      components,
+      conditions = []
+    }) => {
+      const relation = componentRelation ? '*' : '+';
+      const condRelation = conditionRelation ? '*' : '+';
+      const invertComponents = !state;
+      const invertWhole = !type;
+      const comps = components.map(component => `${invertComponents ? '~' : ''}${getName(constructs, component)}`).join(relation);
+      const conds = conditions.map(condition => {
+        let construct = constructConditionStatement(constructs, condition);
+        return construct;
+      }).join(condRelation);
+      return `${invertWhole ? '~' : ''}((${comps})${conds !== '' ? '*(' + conds + ')' : ''})`;
+    };
+  
+    const constructRegulatorStatement = (constructs, {
+      conditionRelation = false,
+      type = false,
+      component,
+      conditions = []
+    }) => {
+      if( conditions.length === 0 ) {
+        return (!type ? '~' : '') + getName(constructs, component);
+      } else {
+        const relation = conditionRelation ? '*' : '+';
+        return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(condition => constructConditionStatement(constructs, condition)).join(relation) + ')';
+      }
+    };
+  
+    const deepCopy = obj => JSON.parse(JSON.stringify(obj));
+  
+    const obj2array = obj => {
+      let arr = [];
+      for( let key of Object.keys(obj) ) {
+        let objUpd = obj[key];
+        objUpd._key = key;
+        arr.push(objUpd);
+      }
+      return arr;
+    };
+  
+    /**
+     * @method ccBooleanAnalysis.fromBiologicalConstructs
+     * @param {obj} constructs A biological constructs object, like one returned from ccBooleanAnalysis.getBiologicalConstructs
+     * @return {string} A boolean expression emulating the regulatory mechanism of the biological constructs.
+     */
+    ccBooleanAnalysis.fromBiologicalConstructs = (constructs) => {
+      // first, deep copy constructs and reformat the object for uniformity across the layers
+      let newConstructs = deepCopy(constructs);
+  
+      let regulators = obj2array(newConstructs.regulators);
+  
+      for( let regulator of regulators ) {
+        for( let condition of (regulator.conditions || []) ) {
+          condition.conditionRelation = condition.subConditionRelation;
+          delete condition.subConditionRelation;
+        }
+      }
+  
+      let statements = {};
+      for( let regulator of regulators ) {
+        statements[regulator._key] = constructRegulatorStatement(constructs, regulator);
+      }
+  
+      let finalStatements = [];
+      for( let regulator of regulators ) {
+        if( regulator.type === true && regulator.dominants ) {
+          finalStatements.push('(' + statements[regulator._key] + regulator.dominants.map(dominant => ' * ~(' + statements[dominant] + ')') + ')');
+        } else {
+          finalStatements.push('(' + statements[regulator._key] + ')');
+        }
+      }
+  
+      return finalStatements.join('+');
+    };
 
    ////////////////////////////////////////
    ////////////////////////////////////////
@@ -1852,11 +1980,19 @@
     * @return {boolean} Whether the two expressions are equivalent.
     */
    ccBooleanAnalysis.compareBooleansSAT = function(s1, s2) {
-     const pt1 = typeof s1 === 'string' ? this.getParseTree(s1) : s1;
-     const pt2 = typeof s2 === 'string' ? this.getParseTree(s2) : s2;
+		const parseTree = (s) => s.length ? this.getParseTree(s) : Logic.FALSE;
 
-     const logic_formula1 = this._buildLogicFormula(pt1);
-     const logic_formula2 = this._buildLogicFormula(pt2);
+     const pt1 = typeof s1 === 'string' ? parseTree(s1) : s1;
+		 const pt2 = typeof s2 === 'string' ? parseTree(s2) : s2;
+		 
+		 const getFormula = (formula) => {
+			 if(formula === Logic.FALSE || formula === Logic.TRUE)
+				 return formula;
+				return this._buildLogicFormula(formula);
+		 }
+
+		 const logic_formula1 = getFormula(pt1);
+     const logic_formula2 = getFormula(pt2);
 
      const expression = Logic.xor(logic_formula1, logic_formula2);
      return !(ccBooleanAnalysis._formulaSatisfiable(expression));
