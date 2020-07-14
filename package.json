@@ -109,5 +109,5 @@
   "scripts": {
     "build": "./node_modules/.bin/gulp scripts"
   },
-  "version": "1.0.15"
+  "version": "1.0.16"
 }
