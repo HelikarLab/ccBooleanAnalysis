@@ -1980,19 +1980,23 @@
     * @return {boolean} Whether the two expressions are equivalent.
     */
    ccBooleanAnalysis.compareBooleansSAT = function(s1, s2) {
-		const parseTree = (s) => s.length ? this.getParseTree(s) : Logic.FALSE;
+		 const parseTree = (s) => s.length ? this.getParseTree(s) : Logic.FALSE;
 
-     const pt1 = typeof s1 === 'string' ? parseTree(s1) : s1;
-		 const pt2 = typeof s2 === 'string' ? parseTree(s2) : s2;
-		 
-		 const getFormula = (formula) => {
-			 if(formula === Logic.FALSE || formula === Logic.TRUE)
-				 return formula;
+		 const getFormula = (s) => {
+        if(s === "0")
+          return Logic.FALSE;
+        if(s === "0")
+          return Logic.TRUE;
+
+        const formula = typeof s === 'string' ? parseTree(s) : s;
+
+        if(formula === Logic.FALSE || formula === Logic.TRUE)
+				  return formula;
 				return this._buildLogicFormula(formula);
 		 }
 
-		 const logic_formula1 = getFormula(pt1);
-     const logic_formula2 = getFormula(pt2);
+		 const logic_formula1 = getFormula(s1);
+     const logic_formula2 = getFormula(s2);
 
      const expression = Logic.xor(logic_formula1, logic_formula2);
      return !(ccBooleanAnalysis._formulaSatisfiable(expression));
