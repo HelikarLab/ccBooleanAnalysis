@@ -2581,16 +2581,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return s.length ? _this6.getParseTree(s) : Logic.FALSE;
 	  };
 	
-	  var pt1 = typeof s1 === 'string' ? parseTree(s1) : s1;
-	  var pt2 = typeof s2 === 'string' ? parseTree(s2) : s2;
+	  var getFormula = function getFormula(s) {
+	    if (s === "0") return Logic.FALSE;
+	    if (s === "0") return Logic.TRUE;
 	
-	  var getFormula = function getFormula(formula) {
+	    var formula = typeof s === 'string' ? parseTree(s) : s;
+	
 	    if (formula === Logic.FALSE || formula === Logic.TRUE) return formula;
 	    return _this6._buildLogicFormula(formula);
 	  };
 	
-	  var logic_formula1 = getFormula(pt1);
-	  var logic_formula2 = getFormula(pt2);
+	  var logic_formula1 = getFormula(s1);
+	  var logic_formula2 = getFormula(s2);
 	
 	  var expression = Logic.xor(logic_formula1, logic_formula2);
 	  return !ccBooleanAnalysis._formulaSatisfiable(expression);
