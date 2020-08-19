@@ -2583,7 +2583,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  var getFormula = function getFormula(s) {
 	    if (s === "0") return Logic.FALSE;
-	    if (s === "0") return Logic.TRUE;
+	    if (s === "1") return Logic.TRUE;
 	
 	    var formula = typeof s === 'string' ? parseTree(s) : s;
 	

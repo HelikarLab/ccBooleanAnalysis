@@ -1985,7 +1985,7 @@
 		 const getFormula = (s) => {
         if(s === "0")
           return Logic.FALSE;
-        if(s === "0")
+        if(s === "1")
           return Logic.TRUE;
 
         const formula = typeof s === 'string' ? parseTree(s) : s;
