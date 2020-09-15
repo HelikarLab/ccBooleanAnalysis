@@ -1256,17 +1256,9 @@
           return c;
         };
 
-        let component = arr2Obj(components);
-        component = Object
-          .keys(component)
-          .reduce((prev, next) => ({
-            ...prev,
-            [next]: _sanitize_name(component[next])
-          }), { })
-
         return {
           regulators: arr2Obj(regulators),
-          components: component,
+          components: objMap(component, _sanitize_name),
           absentState: false
         }
       }
@@ -1329,16 +1321,9 @@
       return c;
     }
 
-    component = Object
-      .keys(component)
-      .reduce((prev, next) => ({
-        ...prev,
-        [next]: _sanitize_name(component[next])
-      }), { })
-
     return {
        regulators : regulator,
-       components : component,
+       components : objMap(component, _sanitize_name),
        absentState
      };
    };
