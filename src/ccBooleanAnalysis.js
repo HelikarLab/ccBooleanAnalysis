@@ -31,6 +31,12 @@
     kIdentifier: "Identifier"
   };
 
+  const objMap = (o, f) => {
+    let ret = {};
+    for(var k in o) ret[k] = f(o[k],k);
+    return ret;
+  }
+
   ////////////////////////////////////////
   ////////////////////////////////////////
   ////      Parse Boolean Tree
@@ -766,13 +772,6 @@
     const objEach = (o, f) => {
         for(var k in o) f(o[k],k);
     }
-    const objMap = (o, f) => {
-        let ret = {};
-        for(var k in o) ret[k] = f(o[k],k);
-        return ret;
-    }
-
-    
        
     let id = -1;
     const Entity = class{

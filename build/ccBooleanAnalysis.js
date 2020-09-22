@@ -101,6 +101,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  kIdentifier: "Identifier"
 	};
 	
+	var objMap = function objMap(o, f) {
+	  var ret = {};
+	  for (var k in o) {
+	    ret[k] = f(o[k], k);
+	  }return ret;
+	};
+	
 	////////////////////////////////////////
 	////////////////////////////////////////
 	////      Parse Boolean Tree
@@ -1025,12 +1032,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    for (var k in o) {
 	      f(o[k], k);
 	    }
-	  };
-	  var objMap = function objMap(o, f) {
-	    var ret = {};
-	    for (var k in o) {
-	      ret[k] = f(o[k], k);
-	    }return ret;
 	  };
 	
 	  var id = -1;
