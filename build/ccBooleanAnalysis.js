@@ -108,6 +108,47 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }return ret;
 	};
 	
+	ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__";
+	
+	ccBooleanAnalysis._to_parsable_expression = function (s) {
+	  var replaceAnd = false;
+	  var replaceOr = false;
+	
+	  if (s.includes("&&")) {
+	    replaceAnd = true;
+	    s = s.replace(/&&/g, "*");
+	  }
+	
+	  if (s.includes("||")) {
+	    replaceOr = true;
+	    s = s.replace(/\|\|/g, "+");
+	  }
+	
+	  s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (s) {
+	    return s.split(/(&amp;){2}/g);
+	  }).flat().map(function (i) {
+	    return i.replace(/\s/g, '');
+	  }).map(function (i) {
+	    return i.replace(/^\d+/g, function (m) {
+	      return '' + ccBooleanAnalysis._VARIABLE_PREFIXER + m;
+	    });
+	  }).map(function (i) {
+	    return i.replace(/\d+$/g, function (m) {
+	      return '' + m + ccBooleanAnalysis._VARIABLE_PREFIXER;
+	    });
+	  }).join(" ");
+	
+	  if (replaceAnd) {
+	    s = s.replace(/\*/g, "&&");
+	  }
+	
+	  if (replaceOr) {
+	    s = s.replace(/\+/g, "||");
+	  }
+	
+	  return s;
+	};
+	
 	////////////////////////////////////////
 	////////////////////////////////////////
 	////      Parse Boolean Tree
@@ -130,6 +171,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  s = s.replace(/([A-Z][a-z][0-9])+(\+|\*|~)/, '_');
+	
+	  s = ccBooleanAnalysis._to_parsable_expression(s);
 	
 	  // find = '\b(AND)\b';
 	  // re = new RegExp(find, 'g');
@@ -1585,9 +1628,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	        return ret;
 	      };
+	
+	      var _VARIABLE_PREFIX_REGEX2 = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g");
+	      var _sanitize_name2 = function _sanitize_name2(c) {
+	        c.name = c.name.replace(_VARIABLE_PREFIX_REGEX2, "");
+	        return c;
+	      };
+	
 	      return {
 	        regulators: arr2Obj(regulators),
-	        components: arr2Obj(components),
+	        components: objMap(component, _sanitize_name2),
 	        absentState: false
 	      };
 	    }
@@ -1688,9 +1738,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    component = ret.component;
 	  }
 	
+	  var _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g");
+	  var _sanitize_name = function _sanitize_name(c) {
+	    c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+	    return c;
+	  };
+	
 	  return {
 	    regulators: regulator,
-	    components: component,
+	    components: objMap(component, _sanitize_name),
 	    absentState: absentState
 	  };
 	};
@@ -1723,52 +1779,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  return null;
-	};
-	
-	var constructConditionStatement = function constructConditionStatement(constructs, _ref12) {
-	  var _ref12$componentRelat = _ref12.componentRelation,
-	      componentRelation = _ref12$componentRelat === undefined ? false : _ref12$componentRelat,
-	      _ref12$conditionRelat = _ref12.conditionRelation,
-	      conditionRelation = _ref12$conditionRelat === undefined ? false : _ref12$conditionRelat,
-	      _ref12$state = _ref12.state,
-	      state = _ref12$state === undefined ? false : _ref12$state,
-	      _ref12$type = _ref12.type,
-	      type = _ref12$type === undefined ? false : _ref12$type,
-	      components = _ref12.components,
-	      _ref12$conditions = _ref12.conditions,
-	      conditions = _ref12$conditions === undefined ? [] : _ref12$conditions;
-	
-	  var relation = componentRelation ? '*' : '+';
-	  var condRelation = conditionRelation ? '*' : '+';
-	  var invertComponents = !state;
-	  var invertWhole = !type;
-	  var comps = components.map(function (component) {
-	    return '' + (invertComponents ? '~' : '') + getName(constructs, component);
-	  }).join(relation);
-	  var conds = conditions.map(function (condition) {
-	    var construct = constructConditionStatement(constructs, condition);
-	    return construct;
-	  }).join(condRelation);
-	  return (invertWhole ? '~' : '') + '((' + comps + ')' + (conds !== '' ? '*(' + conds + ')' : '') + ')';
-	};
-	
-	var constructRegulatorStatement = function constructRegulatorStatement(constructs, _ref13) {
-	  var _ref13$conditionRelat = _ref13.conditionRelation,
-	      conditionRelation = _ref13$conditionRelat === undefined ? false : _ref13$conditionRelat,
-	      _ref13$type = _ref13.type,
-	      type = _ref13$type === undefined ? false : _ref13$type,
-	      component = _ref13.component,
-	      _ref13$conditions = _ref13.conditions,
-	      conditions = _ref13$conditions === undefined ? [] : _ref13$conditions;
-	
-	  if (conditions.length === 0) {
-	    return (!type ? '~' : '') + getName(constructs, component);
-	  } else {
-	    var relation = conditionRelation ? '*' : '+';
-	    return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(function (condition) {
-	      return constructConditionStatement(constructs, condition);
-	    }).join(relation) + ')';
-	  }
 	};
 	
 	var deepCopy = function deepCopy(obj) {
@@ -1920,6 +1930,172 @@ return /******/ (function(modules) { // webpackBootstrap
 	    } finally {
 	      if (_didIteratorError14) {
 	        throw _iteratorError14;
+	      }
+	    }
+	  }
+	
+	  return finalStatements.join('+');
+	};
+	
+	var constructConditionStatement = function constructConditionStatement(constructs, _ref12) {
+	  var _ref12$componentRelat = _ref12.componentRelation,
+	      componentRelation = _ref12$componentRelat === undefined ? false : _ref12$componentRelat,
+	      _ref12$conditionRelat = _ref12.conditionRelation,
+	      conditionRelation = _ref12$conditionRelat === undefined ? false : _ref12$conditionRelat,
+	      _ref12$state = _ref12.state,
+	      state = _ref12$state === undefined ? false : _ref12$state,
+	      _ref12$type = _ref12.type,
+	      type = _ref12$type === undefined ? false : _ref12$type,
+	      components = _ref12.components,
+	      _ref12$conditions = _ref12.conditions,
+	      conditions = _ref12$conditions === undefined ? [] : _ref12$conditions;
+	
+	  var relation = componentRelation ? '*' : '+';
+	  var condRelation = conditionRelation ? '*' : '+';
+	  var invertComponents = !state;
+	  var invertWhole = !type;
+	  var comps = components.map(function (component) {
+	    return '' + (invertComponents ? '~' : '') + getName(constructs, component);
+	  }).join(relation);
+	  var conds = conditions.map(function (condition) {
+	    var construct = constructConditionStatement(constructs, condition);
+	    return construct;
+	  }).join(condRelation);
+	  return (invertWhole ? '~' : '') + '((' + comps + ')' + (conds !== '' ? '*(' + conds + ')' : '') + ')';
+	};
+	
+	var constructRegulatorStatement = function constructRegulatorStatement(constructs, _ref13) {
+	  var _ref13$conditionRelat = _ref13.conditionRelation,
+	      conditionRelation = _ref13$conditionRelat === undefined ? false : _ref13$conditionRelat,
+	      _ref13$type = _ref13.type,
+	      type = _ref13$type === undefined ? false : _ref13$type,
+	      component = _ref13.component,
+	      _ref13$conditions = _ref13.conditions,
+	      conditions = _ref13$conditions === undefined ? [] : _ref13$conditions;
+	
+	  if (conditions.length === 0) {
+	    return (!type ? '~' : '') + getName(constructs, component);
+	  } else {
+	    var relation = conditionRelation ? '*' : '+';
+	    return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(function (condition) {
+	      return constructConditionStatement(constructs, condition);
+	    }).join(relation) + ')';
+	  }
+	};
+	
+	/**
+	 * @method ccBooleanAnalysis.fromBiologicalConstructs
+	 * @param {obj} constructs A biological constructs object, like one returned from ccBooleanAnalysis.getBiologicalConstructs
+	 * @return {string} A boolean expression emulating the regulatory mechanism of the biological constructs.
+	 */
+	ccBooleanAnalysis.fromBiologicalConstructs = function (constructs) {
+	  // first, deep copy constructs and reformat the object for uniformity across the layers
+	  var newConstructs = deepCopy(constructs);
+	
+	  var regulators = obj2array(newConstructs.regulators);
+	
+	  var _iteratorNormalCompletion16 = true;
+	  var _didIteratorError16 = false;
+	  var _iteratorError16 = undefined;
+	
+	  try {
+	    for (var _iterator16 = regulators[Symbol.iterator](), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
+	      var regulator = _step16.value;
+	      var _iteratorNormalCompletion19 = true;
+	      var _didIteratorError19 = false;
+	      var _iteratorError19 = undefined;
+	
+	      try {
+	        for (var _iterator19 = (regulator.conditions || [])[Symbol.iterator](), _step19; !(_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done); _iteratorNormalCompletion19 = true) {
+	          var condition = _step19.value;
+	
+	          condition.conditionRelation = condition.subConditionRelation;
+	          delete condition.subConditionRelation;
+	        }
+	      } catch (err) {
+	        _didIteratorError19 = true;
+	        _iteratorError19 = err;
+	      } finally {
+	        try {
+	          if (!_iteratorNormalCompletion19 && _iterator19.return) {
+	            _iterator19.return();
+	          }
+	        } finally {
+	          if (_didIteratorError19) {
+	            throw _iteratorError19;
+	          }
+	        }
+	      }
+	    }
+	  } catch (err) {
+	    _didIteratorError16 = true;
+	    _iteratorError16 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion16 && _iterator16.return) {
+	        _iterator16.return();
+	      }
+	    } finally {
+	      if (_didIteratorError16) {
+	        throw _iteratorError16;
+	      }
+	    }
+	  }
+	
+	  var statements = {};
+	  var _iteratorNormalCompletion17 = true;
+	  var _didIteratorError17 = false;
+	  var _iteratorError17 = undefined;
+	
+	  try {
+	    for (var _iterator17 = regulators[Symbol.iterator](), _step17; !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
+	      var _regulator4 = _step17.value;
+	
+	      statements[_regulator4._key] = constructRegulatorStatement(constructs, _regulator4);
+	    }
+	  } catch (err) {
+	    _didIteratorError17 = true;
+	    _iteratorError17 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion17 && _iterator17.return) {
+	        _iterator17.return();
+	      }
+	    } finally {
+	      if (_didIteratorError17) {
+	        throw _iteratorError17;
+	      }
+	    }
+	  }
+	
+	  var finalStatements = [];
+	  var _iteratorNormalCompletion18 = true;
+	  var _didIteratorError18 = false;
+	  var _iteratorError18 = undefined;
+	
+	  try {
+	    for (var _iterator18 = regulators[Symbol.iterator](), _step18; !(_iteratorNormalCompletion18 = (_step18 = _iterator18.next()).done); _iteratorNormalCompletion18 = true) {
+	      var _regulator5 = _step18.value;
+	
+	      if (_regulator5.type === true && _regulator5.dominants) {
+	        finalStatements.push('(' + statements[_regulator5._key] + _regulator5.dominants.map(function (dominant) {
+	          return ' * ~(' + statements[dominant] + ')';
+	        }) + ')');
+	      } else {
+	        finalStatements.push('(' + statements[_regulator5._key] + ')');
+	      }
+	    }
+	  } catch (err) {
+	    _didIteratorError18 = true;
+	    _iteratorError18 = err;
+	  } finally {
+	    try {
+	      if (!_iteratorNormalCompletion18 && _iterator18.return) {
+	        _iterator18.return();
+	      }
+	    } finally {
+	      if (_didIteratorError18) {
+	        throw _iteratorError18;
 	      }
 	    }
 	  }
@@ -2301,14 +2477,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    '+': '||',
 	    '*': '&&',
 	    'AND': '&&',
-	    '~': '!'
+	    '~': '!',
+	    'or': '||',
+	    'and': '&&'
 	  };
 	
 	  var replFun = function replFun(a, v1, matched, v2) {
 	    return (v1 || "") + mapObj[matched] + (v2 || "");
 	  };
-	  var parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
+	  //  console.log("expression", expression)
+	  var parsable_expression = expression;
+	  //  console.log("pe", parsable_expression);
+	  parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi, replFun).replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 	
+	  parsable_expression = ccBooleanAnalysis._to_parsable_expression(parsable_expression);
 	  // insert the assignments into the parsable_expression
 	  parsable_expression = this._applyRegexes(parsable_expression, regexes);
 	
@@ -2320,33 +2502,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // This expression should be parsable (i.e. have &&, ||, etc.)
 	  // regexes / assignments should be generated using ccBooleanAnalysis._getRegexes.
 	  // This function applies those regexes to an expression.
-	  var _iteratorNormalCompletion16 = true;
-	  var _didIteratorError16 = false;
-	  var _iteratorError16 = undefined;
+	  var _iteratorNormalCompletion20 = true;
+	  var _didIteratorError20 = false;
+	  var _iteratorError20 = undefined;
 	
 	  try {
 	    var _loop2 = function _loop2() {
-	      var regex = _step16.value;
+	      var regex = _step20.value;
 	
 	      parsable_expression = parsable_expression.replace(regex[0], function (a, v1, id, v2) {
 	        return (v1 || "") + regex[1] + (v2 || "");
 	      });
 	    };
 	
-	    for (var _iterator16 = regexes[Symbol.iterator](), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
+	    for (var _iterator20 = regexes[Symbol.iterator](), _step20; !(_iteratorNormalCompletion20 = (_step20 = _iterator20.next()).done); _iteratorNormalCompletion20 = true) {
 	      _loop2();
 	    }
 	  } catch (err) {
-	    _didIteratorError16 = true;
-	    _iteratorError16 = err;
+	    _didIteratorError20 = true;
+	    _iteratorError20 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion16 && _iterator16.return) {
-	        _iterator16.return();
+	      if (!_iteratorNormalCompletion20 && _iterator20.return) {
+	        _iterator20.return();
 	      }
 	    } finally {
-	      if (_didIteratorError16) {
-	        throw _iteratorError16;
+	      if (_didIteratorError20) {
+	        throw _iteratorError20;
 	      }
 	    }
 	  }
@@ -2382,29 +2564,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	    new_assignments[k] = statics[k];
 	  };
 	
-	  var _iteratorNormalCompletion17 = true;
-	  var _didIteratorError17 = false;
-	  var _iteratorError17 = undefined;
+	  var _iteratorNormalCompletion21 = true;
+	  var _didIteratorError21 = false;
+	  var _iteratorError21 = undefined;
 	
 	  try {
-	    for (var _iterator17 = equations[Symbol.iterator](), _step17; !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
-	      var equation = _step17.value;
+	    for (var _iterator21 = equations[Symbol.iterator](), _step21; !(_iteratorNormalCompletion21 = (_step21 = _iterator21.next()).done); _iteratorNormalCompletion21 = true) {
+	      var equation = _step21.value;
 	
 	      var sides = equation.split('=');
 	      new_assignments[sides[0].trim()] = this._evaluateState(sides[1], regexes);
 	    }
 	    //     transitions.push([assignments, new_assignments]);
 	  } catch (err) {
-	    _didIteratorError17 = true;
-	    _iteratorError17 = err;
+	    _didIteratorError21 = true;
+	    _iteratorError21 = err;
 	  } finally {
 	    try {
-	      if (!_iteratorNormalCompletion17 && _iterator17.return) {
-	        _iterator17.return();
+	      if (!_iteratorNormalCompletion21 && _iterator21.return) {
+	        _iterator21.return();
 	      }
 	    } finally {
-	      if (_didIteratorError17) {
-	        throw _iteratorError17;
+	      if (_didIteratorError21) {
+	        throw _iteratorError21;
 	      }
 	    }
 	  }

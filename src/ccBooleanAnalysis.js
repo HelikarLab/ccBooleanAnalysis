@@ -36,6 +36,39 @@
     for(var k in o) ret[k] = f(o[k],k);
     return ret;
   }
+  
+  ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__"
+
+  ccBooleanAnalysis._to_parsable_expression = s => {
+    let replaceAnd = false;
+    let replaceOr = false;
+    
+    if ( s.includes("&&") ) {
+      replaceAnd = true;
+      s = s.replace(/&&/g, "*");
+    }
+
+    if ( s.includes("||") ) {
+      replaceOr = true;
+      s = s.replace(/\|\|/g,  "+");
+    }
+
+    s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)).flat()
+      .map(i => i.replace(/\s/g, ''))
+      .map(i => i.replace(/^\d+/g, m => `${ccBooleanAnalysis._VARIABLE_PREFIXER}${m}`))
+      .map(i => i.replace(/\d+$/g, m => `${m}${ccBooleanAnalysis._VARIABLE_PREFIXER}`))
+      .join(" ");
+
+    if ( replaceAnd ) {
+      s = s.replace(/\*/g, "&&");
+    }
+
+    if ( replaceOr ) {
+      s = s.replace(/\+/g, "||")
+    }
+
+    return s;
+  }
 
   ////////////////////////////////////////
   ////////////////////////////////////////
@@ -59,6 +92,9 @@
     }
 
     s = s.replace(/([A-Z][a-z][0-9])+(\+|\*|~)/, '_');
+    
+    s = ccBooleanAnalysis._to_parsable_expression(s);
+    
 
     // find = '\b(AND)\b';
     // re = new RegExp(find, 'g');
@@ -1213,9 +1249,16 @@
           })
           return ret;
         }
+
+        const _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g")
+        const _sanitize_name = c => {
+          c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+          return c;
+        };
+
         return {
           regulators: arr2Obj(regulators),
-          components: arr2Obj(components),
+          components: objMap(component, _sanitize_name),
           absentState: false
         }
       }
@@ -1309,10 +1352,17 @@
 			regulator = ret.regulator;
 			component = ret.component;
 		}
-		
+    
+    
+    const _VARIABLE_PREFIX_REGEX = new RegExp(ccBooleanAnalysis._VARIABLE_PREFIXER, "g")
+    const _sanitize_name = c => {
+      c.name = c.name.replace(_VARIABLE_PREFIX_REGEX, "");
+      return c;
+    }
+
     return {
        regulators : regulator,
-       components : component,
+       components : objMap(component, _sanitize_name),
        absentState
      };
 	 };
@@ -1323,40 +1373,6 @@
         if( key === id ) return constructs.components[key].name;
       }
       return null;
-    };
-  
-    const constructConditionStatement = (constructs, {
-      componentRelation = false,
-      conditionRelation = false,
-      state = false,
-      type = false,
-      components,
-      conditions = []
-    }) => {
-      const relation = componentRelation ? '*' : '+';
-      const condRelation = conditionRelation ? '*' : '+';
-      const invertComponents = !state;
-      const invertWhole = !type;
-      const comps = components.map(component => `${invertComponents ? '~' : ''}${getName(constructs, component)}`).join(relation);
-      const conds = conditions.map(condition => {
-        let construct = constructConditionStatement(constructs, condition);
-        return construct;
-      }).join(condRelation);
-      return `${invertWhole ? '~' : ''}((${comps})${conds !== '' ? '*(' + conds + ')' : ''})`;
-    };
-  
-    const constructRegulatorStatement = (constructs, {
-      conditionRelation = false,
-      type = false,
-      component,
-      conditions = []
-    }) => {
-      if( conditions.length === 0 ) {
-        return (!type ? '~' : '') + getName(constructs, component);
-      } else {
-        const relation = conditionRelation ? '*' : '+';
-        return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(condition => constructConditionStatement(constructs, condition)).join(relation) + ')';
-      }
     };
   
     const deepCopy = obj => JSON.parse(JSON.stringify(obj));
@@ -1405,6 +1421,76 @@
   
       return finalStatements.join('+');
     };
+
+  const constructConditionStatement = (constructs, {
+    componentRelation = false,
+    conditionRelation = false,
+    state = false,
+    type = false,
+    components,
+    conditions = []
+  }) => {
+    const relation = componentRelation ? '*' : '+';
+    const condRelation = conditionRelation ? '*' : '+';
+    const invertComponents = !state;
+    const invertWhole = !type;
+    const comps = components.map(component => `${invertComponents ? '~' : ''}${getName(constructs, component)}`).join(relation);
+    const conds = conditions.map(condition => {
+      let construct = constructConditionStatement(constructs, condition);
+      return construct;
+    }).join(condRelation);
+    return `${invertWhole ? '~' : ''}((${comps})${conds !== '' ? '*(' + conds + ')' : ''})`;
+  };
+  
+  const constructRegulatorStatement = (constructs, {
+    conditionRelation = false,
+    type = false,
+    component,
+    conditions = []
+  }) => {
+    if( conditions.length === 0 ) {
+      return (!type ? '~' : '') + getName(constructs, component);
+    } else {
+      const relation = conditionRelation ? '*' : '+';
+      return (!type ? '~' : '') + getName(constructs, component) + '*(' + conditions.map(condition => constructConditionStatement(constructs, condition)).join(relation) + ')';
+    }
+  };
+
+  
+  /**
+   * @method ccBooleanAnalysis.fromBiologicalConstructs
+   * @param {obj} constructs A biological constructs object, like one returned from ccBooleanAnalysis.getBiologicalConstructs
+   * @return {string} A boolean expression emulating the regulatory mechanism of the biological constructs.
+   */
+  ccBooleanAnalysis.fromBiologicalConstructs = (constructs) => {
+    // first, deep copy constructs and reformat the object for uniformity across the layers
+    let newConstructs = deepCopy(constructs);
+  
+    let regulators = obj2array(newConstructs.regulators);
+  
+    for( let regulator of regulators ) {
+      for( let condition of (regulator.conditions || []) ) {
+        condition.conditionRelation = condition.subConditionRelation;
+        delete condition.subConditionRelation;
+      }
+    }
+  
+    let statements = {};
+    for( let regulator of regulators ) {
+      statements[regulator._key] = constructRegulatorStatement(constructs, regulator);
+    }
+  
+    let finalStatements = [];
+    for( let regulator of regulators ) {
+      if( regulator.type === true && regulator.dominants ) {
+        finalStatements.push('(' + statements[regulator._key] + regulator.dominants.map(dominant => ' * ~(' + statements[dominant] + ')') + ')');
+      } else {
+        finalStatements.push('(' + statements[regulator._key] + ')');
+      }
+    }
+  
+    return finalStatements.join('+');
+  };
 
    ////////////////////////////////////////
    ////////////////////////////////////////
@@ -1774,13 +1860,19 @@
        '+':'||',
        '*':'&&',
        'AND':'&&',
-       '~': '!'
+       '~': '!',
+       'or':'||',
+       'and':'&&'
      };
 
      const replFun = (a, v1, matched, v2) => (v1||"")+mapObj[matched]+(v2||"");
-     let parsable_expression = expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
+    //  console.log("expression", expression)
+     let parsable_expression = expression;
+    //  console.log("pe", parsable_expression);
+     parsable_expression = parsable_expression.replace(/(^|[^a-z0-9]|\s)(AND|OR|\+|\*)([^a-z0-9]|\s|$)/gi,replFun)
                                         .replace(/(^|[^a-z0-9]|\s)(~)([^a-z0-9]|\s|$)/gi, replFun);
 
+     parsable_expression = ccBooleanAnalysis._to_parsable_expression(parsable_expression);
      // insert the assignments into the parsable_expression
      parsable_expression = this._applyRegexes(parsable_expression, regexes);
 
