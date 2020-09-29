@@ -53,7 +53,9 @@
       s = s.replace(/\|\|/g,  "+");
     }
 
-    s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)).flat()
+    const flat = a => [].concat.apply([], a);
+
+    s = flat(s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)))
       .map(i => i.replace(/\s/g, ''))
       .map(i => i.replace(/^\d+/g, m => `${ccBooleanAnalysis._VARIABLE_PREFIXER}${m}`))
       .map(i => i.replace(/\d+$/g, m => `${m}${ccBooleanAnalysis._VARIABLE_PREFIXER}`))

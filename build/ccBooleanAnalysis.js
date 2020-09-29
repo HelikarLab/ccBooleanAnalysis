@@ -124,9 +124,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    s = s.replace(/\|\|/g, "+");
 	  }
 	
-	  s = s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (s) {
+	  var flat = function flat(a) {
+	    return [].concat.apply([], a);
+	  };
+	
+	  s = flat(s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (s) {
 	    return s.split(/(&amp;){2}/g);
-	  }).flat().map(function (i) {
+	  })).map(function (i) {
 	    return i.replace(/\s/g, '');
 	  }).map(function (i) {
 	    return i.replace(/^\d+/g, function (m) {
