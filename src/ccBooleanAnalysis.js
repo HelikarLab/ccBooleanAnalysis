@@ -53,6 +53,7 @@
       s = s.replace(/\|\|/g,  "+");
     }
 
+    // does not exist for node 10
     const flat = a => [].concat.apply([], a);
 
     s = flat(s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)))
@@ -1260,7 +1261,7 @@
 
         return {
           regulators: arr2Obj(regulators),
-          components: objMap(component, _sanitize_name),
+          components: objMap(components, _sanitize_name),
           absentState: false
         }
       }

@@ -124,6 +124,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    s = s.replace(/\|\|/g, "+");
 	  }
 	
+	  // does not exist for node 10
 	  var flat = function flat(a) {
 	    return [].concat.apply([], a);
 	  };
@@ -1641,7 +1642,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	      return {
 	        regulators: arr2Obj(regulators),
-	        components: objMap(component, _sanitize_name2),
+	        components: objMap(components, _sanitize_name2),
 	        absentState: false
 	      };
 	    }
