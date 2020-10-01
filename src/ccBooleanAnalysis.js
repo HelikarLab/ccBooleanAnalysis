@@ -1245,10 +1245,10 @@
         const components = missing.map((name) => ({name, _uid: genId()}));
         const regulators = components.map(({_uid}) => ({component: _uid, type: false, _uid: genId()}));
 
-        const arr2Obj = (arr) => {
+        const arr2Obj = (arr, f) => {
           let ret = {};
           arr.forEach(({_uid, ...rest}) => {
-            ret[_uid] = rest;
+            ret[_uid] = f ? f(rest) : rest;
           })
           return ret;
         }
@@ -1261,7 +1261,7 @@
 
         return {
           regulators: arr2Obj(regulators),
-          components: objMap(components, _sanitize_name),
+          components: arr2Obj(components, _sanitize_name),
           absentState: false
         }
       }

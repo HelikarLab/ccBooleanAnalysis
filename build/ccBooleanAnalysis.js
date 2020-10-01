@@ -1623,13 +1623,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return { component: _uid, type: false, _uid: genId() };
 	      });
 	
-	      var arr2Obj = function arr2Obj(arr) {
+	      var arr2Obj = function arr2Obj(arr, f) {
 	        var ret = {};
 	        arr.forEach(function (_ref11) {
 	          var _uid = _ref11._uid,
 	              rest = _objectWithoutProperties(_ref11, ['_uid']);
 	
-	          ret[_uid] = rest;
+	          ret[_uid] = f ? f(rest) : rest;
 	        });
 	        return ret;
 	      };
@@ -1642,7 +1642,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	      return {
 	        regulators: arr2Obj(regulators),
-	        components: objMap(components, _sanitize_name2),
+	        components: arr2Obj(components, _sanitize_name2),
 	        absentState: false
 	      };
 	    }
