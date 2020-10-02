@@ -86,10 +86,6 @@
     "webpack-stream": "^3.2.0"
   },
   "directories": {},
-  "dist": {
-    "shasum": "a0b8626f55e975062cbac284068e88bb588dfcca",
-    "tarball": "https://registry.npmjs.org/ccbooleananalysis/-/ccbooleananalysis-1.0.9.tgz"
-  },
   "gitHead": "818099043b47cc6b8b88372c0f29caf297afc1f2",
   "license": "ISC",
   "main": "build/ccBooleanAnalysis.js",
@@ -109,5 +105,5 @@
   "scripts": {
     "build": "./node_modules/.bin/gulp scripts"
   },
-  "version": "1.0.16"
+  "version": "1.0.17"
 }
