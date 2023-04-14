@@ -128,8 +128,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var flat = function flat(a) {
 	    return [].concat.apply([], a);
 	  };
-	
-	  s = flat(s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(function (s) {
+	  // /(?<=[+\*~*/()])|(?=[+\*~*/()])/  --> original regex 
+	  //new regex removes lookbehind not supported in safari browser
+	  s = flat(s.split(/([+\*~*/()])|(?=[+\*~*/()])/g).map(function (s) {
 	    return s.split(/(&amp;){2}/g);
 	  })).map(function (i) {
 	    return i.replace(/\s/g, '');

@@ -55,8 +55,9 @@
 
     // does not exist for node 10
     const flat = a => [].concat.apply([], a);
-
-    s = flat(s.split(/(?<=[+\*~*/()])|(?=[+\*~*/()])/).map(s => s.split(/(&amp;){2}/g)))
+ // /(?<=[+\*~*/()])|(?=[+\*~*/()])/  --> original regex 
+	  //new regex removes lookbehind not supported in safari browser
+    s = flat(s.split(/([+\*~*/()])|(?=[+\*~*/()])/g).map(s => s.split(/(&amp;){2}/g)))
       .map(i => i.replace(/\s/g, ''))
       .map(i => i.replace(/^\d+/g, m => `${ccBooleanAnalysis._VARIABLE_PREFIXER}${m}`))
       .map(i => i.replace(/\d+$/g, m => `${m}${ccBooleanAnalysis._VARIABLE_PREFIXER}`))
