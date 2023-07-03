@@ -37,7 +37,7 @@
     return ret;
   }
   
-  ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__"
+  ccBooleanAnalysis._VARIABLE_PREFIXER = "__V4RB0PR3FXR__"
 
   ccBooleanAnalysis._to_parsable_expression = s => {
     let replaceAnd = false;
@@ -1303,7 +1303,9 @@
             if(!dnf[k]){ dnf[k] = []; }
 
             //loop through state space of all missing elements
-            for (let i = 0; i < (1 << missing.length); i++) {
+            let pos = (1 << missing.length);
+            if (pos>15000) { pos=15000}
+            for (let i = 0; i < pos; i++) {
                 let newd = [orig[0].map(e=>e),orig[1].map(e=>e)];
                 for(let j = 0; j < missing.length; j++){
                     newd[(i >> j) & 1].push(missing[j]);
