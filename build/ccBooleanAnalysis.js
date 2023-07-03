@@ -108,7 +108,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }return ret;
 	};
 	
-	ccBooleanAnalysis._VARIABLE_PREFIXER = "__VARIABLE_PREFIXER__";
+	ccBooleanAnalysis._VARIABLE_PREFIXER = "__V4RB0PR3FXR__";
 	
 	ccBooleanAnalysis._to_parsable_expression = function (s) {
 	  var replaceAnd = false;
@@ -1686,7 +1686,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	
 	      //loop through state space of all missing elements
-	      for (var i = 0; i < 1 << missing.length; i++) {
+	      var pos = 1 << missing.length;
+	      if (pos > 15000) {
+	        pos = 15000;
+	      }
+	      for (var i = 0; i < pos; i++) {
 	        var newd = [orig[0].map(function (e) {
 	          return e;
 	        }), orig[1].map(function (e) {
